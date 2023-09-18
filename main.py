@@ -45,7 +45,13 @@ def udpServer():
                 response = SecurePacket.parse_received(body)
                 if response != None:
                     (friend, content) = response
-                    Message.parse_received_message(friend, content)
+                    verb = content.split(" ")[0]
+                    if verb == "MESSAGE":
+                        Message.parse_received_message(friend, content)
+                    if verb == "MESSAGE_DELIVERED":
+                        Message.parse_message_delivered(friend, content)
+                    if verb == "MESSAGE_READ":
+                        Message.parse_message_read(friend, content)
 
 
 thread = threading.Thread(target=udpServer)

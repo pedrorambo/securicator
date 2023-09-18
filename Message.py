@@ -3,16 +3,18 @@ import time
 from SecurePacket import SecurePacket
 import uuid
 
+
 def current_time_in_milliseconds():
     return str(round(time.time() * 1000))
+
 
 class Message:
     @staticmethod
     def persist():
         with open("messages.csv", "w") as file:
             for message in Message.messages:
-                file.write(message.id + ";" + message.created_at + ";" + message.username + ";" + str(message.content).replace("\n", "").replace(";", "") + "\n")
-
+                file.write(message.id + ";" + message.created_at + ";" + message.username +
+                           ";" + str(message.content).replace("\n", "").replace(";", "") + "\n")
 
     @staticmethod
     def send(username, message):
@@ -24,7 +26,8 @@ class Message:
         message_entity.content = message
         message_entity.created_at = current_time_in_milliseconds()
 
-        SecurePacket.send(message_entity.username, "MESSAGE " + message_entity.id + " " +  message_entity.created_at +  " " + message_in_base64)
+        SecurePacket.send(message_entity.username, "MESSAGE " + message_entity.id +
+                          " " + message_entity.created_at + " " + message_in_base64)
 
         Message.messages.append(message_entity)
 
@@ -42,5 +45,23 @@ class Message:
         message_entity.content = message
         message_entity.created_at = created_at
         Message.messages.append(message_entity)
+
+        SecurePacket.send(friend.username, "MESSAGE_DELIVERED" +
+                          " " + id + " " + current_time_in_milliseconds())
+        SecurePacket.send(friend.username, "MESSAGE_READ" +
+                          " " + id + " " + current_time_in_milliseconds())
+
+    @staticmethod
+    def parse_message_delivered(friend, content):
+        id = content.split(" ")[1]
+        delivered_at = content.split(" ")[2]
+        print("[DELIVERED]")
+
+    @staticmethod
+    def parse_message_read(friend, content):
+        id = content.split(" ")[1]
+        read_at = content.split(" ")[2]
+        print("[READ]")
+
 
 Message.messages = []
