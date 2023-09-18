@@ -6,6 +6,7 @@ from AESCipher import AESCipher
 import random
 import string
 import time
+from Tunnel import Tunnel
 
 
 def current_time_in_milliseconds():
@@ -16,15 +17,6 @@ def random_symmetric_key():
     length = 100
     char_set = string.ascii_uppercase + string.ascii_lowercase + string.digits
     return ''.join(random.sample(char_set*length, length))
-
-
-def broadcast_message(message):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    client_socket.sendto(message.encode(),
-                         ("127.0.0.1", 12000))
-    client_socket.sendto(message.encode(),
-                         ("127.0.0.1", 12001))
 
 
 class HandshakeSession:
@@ -51,7 +43,7 @@ class HandshakeSession:
             session.my_public_key + " " + session.my_user_name
         encrypted_message = aes.encrypt(message)
         body = "START_HANDSHAKE_SESSION " + encrypted_message
-        broadcast_message(body)
+        Tunnel.send_to_username(its_name, body)
 
         HandshakeSession.pending_sessions.append(session)
 
@@ -92,7 +84,7 @@ class HandshakeSession:
 
         body = "CONFIRM_HANDSHAKE_SESSION " + session.id + " " + \
             encrypted_symmetric_key + " " + encrypted_inner_content
-        broadcast_message(body)
+        Tunnel.send_to_username(session.its_name, body)
         print("Handshake session request received " + session.id)
 
         Friend.add_friend(session.my_public_key, session.my_private_key,

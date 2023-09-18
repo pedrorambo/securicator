@@ -1,11 +1,13 @@
 import socket
 import threading
+import time
 from Friend import Friend
 from HandshakeSession import HandshakeSession
 from Message import Message
 import os
 
 from SecurePacket import SecurePacket
+from Tunnel import Tunnel
 
 pre_shared_key = os.environ["COM_PRESHARED_KEY"]
 my_username = os.environ["COM_USERNAME"]
@@ -21,42 +23,23 @@ Friend.load(my_username)
 Message.load(my_username)
 
 
-def udpServer():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.bind(('', DEFAULT_PORT))
-    except socket.error as e:
-        s.bind(('', DEFAULT_PORT + 1))
-
+def tunnel_keepalive():
     while True:
-        data = s.recvfrom(BUFFER_SIZE)
-        if data:
-            message = data[0].decode()
-            if (message.startswith("CONFIRM_HANDSHAKE_SESSION")):
-                HandshakeSession.receive_handshake_confirmation(
-                    " ".join(message.split(" ")[1:]))
-            if (message.startswith("START_HANDSHAKE_SESSION")):
-                HandshakeSession.receive_handshake_request(
-                    message.split(" ")[1])
-            if (message.startswith("MESSAGE ")):
-                body = " ".join(message.split(" ")[1:])
-                Message.parse_received_message(body)
-            if (message.startswith("SECURE_PACKET ")):
-                body = " ".join(message.split(" ")[1:])
-                response = SecurePacket.parse_received(body)
-                if response != None:
-                    (friend, content) = response
-                    verb = content.split(" ")[0]
-                    if verb == "MESSAGE":
-                        Message.parse_received_message(friend, content)
-                    if verb == "MESSAGE_DELIVERED":
-                        Message.parse_message_delivered(friend, content)
-                    if verb == "MESSAGE_READ":
-                        Message.parse_message_read(friend, content)
+        time.sleep(1)
+        Tunnel.send_tunnel_keepalives()
 
 
-thread = threading.Thread(target=udpServer)
-thread.start()
+def tunnel_maintain():
+    while True:
+        time.sleep(1)
+        Tunnel.maintain_tunnels(my_username)
+
+
+tunnel_maintain_thread = threading.Thread(target=tunnel_maintain)
+tunnel_maintain_thread.start()
+
+tunnel_keepalive_thread = threading.Thread(target=tunnel_keepalive)
+tunnel_keepalive_thread.start()
 
 while True:
     raw_content = input()
@@ -81,6 +64,13 @@ while True:
     if (raw_content.startswith("messages")):
         Message.print_messages()
         continue
+
+    if (raw_content.startswith("tunnel")):
+        if len(raw_content.split(" ")) < 2:
+            print("tunnel <username>")
+            continue
+        username = raw_content.split(" ")[1]
+        Tunnel.force_tunnel(my_username, username)
 
     if raw_content.startswith("message"):
         if len(raw_content.split(" ")) < 3:

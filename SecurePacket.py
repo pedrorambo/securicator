@@ -1,10 +1,10 @@
 import base64
 import random
-import socket
 import string
 from AESCipher import AESCipher
 from Friend import Friend
 from RSA import RSA
+from Tunnel import Tunnel
 
 
 def random_symmetric_key():
@@ -12,14 +12,6 @@ def random_symmetric_key():
     char_set = string.ascii_uppercase + string.ascii_lowercase + string.digits
     return ''.join(random.sample(char_set*length, length))
 
-
-def broadcast_message(message):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    client_socket.sendto(message.encode(),
-                         ("127.0.0.1", 12000))
-    client_socket.sendto(message.encode(),
-                         ("127.0.0.1", 12001))
 
 class SecurePacket:
     @staticmethod
@@ -33,8 +25,8 @@ class SecurePacket:
             base64.b64encode(content.encode()).decode("utf-8"))
         content = friend.its_public_key + " " + \
             encrypted_symmetric_key + " " + encrypted_message
-        broadcast_message("SECURE_PACKET " + content)
-    
+        Tunnel.send_to_username(username, "SECURE_PACKET " + content)
+
     @staticmethod
     def parse_received(raw):
         my_public_key = raw.split(" ")[0]
