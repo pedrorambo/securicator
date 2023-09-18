@@ -78,8 +78,8 @@ while True:
         continue
 
     if raw_content.startswith("friend"):
-        my_user_name = input("Your user name:")
-        its_user_name = input("Your friend's user name:")
+        my_user_name = input("Your user name: ")
+        its_user_name = input("Your friend's user name: ")
         HandshakeSession.start_new_session(my_user_name, its_user_name)
         continue
 

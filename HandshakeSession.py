@@ -48,7 +48,7 @@ class HandshakeSession:
 
         aes = AESCipher(HandshakeSession.my_pre_shared_key)
         message = session.id + " " + current_time_in_milliseconds() + " " + \
-            session.my_public_key
+            session.my_public_key + " " + session.my_user_name
         encrypted_message = aes.encrypt(message)
         body = "START_HANDSHAKE_SESSION " + encrypted_message
         broadcast_message(body)
@@ -64,13 +64,18 @@ class HandshakeSession:
         id = content.split(" ")[0]
         timestamp = content.split(" ")[1]
         its_public_key = content.split(" ")[2]
+        its_user_name = content.split(" ")[3]
+
+        for session in HandshakeSession.pending_sessions:
+            if session.id == id:
+                return
 
         public_key, private_key = RSA.generate_keys_in_base64()
 
         session = HandshakeSession()
         session.id = id
         session.my_user_name = "myusername"
-        session.its_name = "itsusername"
+        session.its_name = its_user_name
         session.started_by_me = False
         session.its_public_key = its_public_key
         session.my_public_key = public_key
