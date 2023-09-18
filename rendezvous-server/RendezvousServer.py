@@ -9,10 +9,7 @@ DEFAULT_PORT = 4900
 
 def udpServer():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.bind(('', DEFAULT_PORT))
-    except socket.error as e:
-        s.bind(('', DEFAULT_PORT + 1))
+    s.bind(('0.0.0.0', DEFAULT_PORT))
 
     while True:
         data, client = s.recvfrom(BUFFER_SIZE)
