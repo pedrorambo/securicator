@@ -10,11 +10,28 @@ def current_time_in_milliseconds():
 
 class Message:
     @staticmethod
-    def persist():
-        with open("messages.csv", "w") as file:
+    def persist(username):
+        with open(username + "-messages.csv", "w") as file:
             for message in Message.messages:
                 file.write(message.id + ";" + message.created_at + ";" + message.username +
-                           ";" + str(message.content).replace("\n", "").replace(";", "") + "\n")
+                           ";" + str(message.content).replace("\n", "").replace(";", "") + ";" + message.delivered_at + ";" + message.read_at + "\n")
+
+    @staticmethod
+    def load(username):
+        try:
+            with open(username + "-messages.csv", "r") as file:
+                for line in file.readlines():
+                    message = Message()
+                    line = line.replace("\n", "")
+                    message.id = line.split(';')[0]
+                    message.created_at = line.split(';')[1]
+                    message.username = line.split(';')[2]
+                    message.content = line.split(';')[3]
+                    message.delivered_at = line.split(';')[4]
+                    message.read_at = line.split(';')[5]
+                    Message.messages.append(message)
+        except FileNotFoundError:
+            pass
 
     @staticmethod
     def get_by_id(id):

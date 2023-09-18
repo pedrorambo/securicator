@@ -17,7 +17,8 @@ messages = []
 BUFFER_SIZE = 1024
 DEFAULT_PORT = 12000
 
-Friend.load()
+Friend.load(my_username)
+Message.load(my_username)
 
 
 def udpServer():
@@ -73,8 +74,8 @@ while True:
         continue
 
     if raw_content.startswith("save"):
-        Friend.persist()
-        Message.persist()
+        Friend.persist(my_username)
+        Message.persist(my_username)
         continue
 
     if (raw_content.startswith("messages")):
