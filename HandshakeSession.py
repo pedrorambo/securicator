@@ -1,5 +1,6 @@
 import socket
 import uuid
+from Friend import Friend
 from RSA import RSA
 from AESCipher import AESCipher
 import random
@@ -88,6 +89,10 @@ class HandshakeSession:
             encrypted_symmetric_key + " " + encrypted_inner_content
         broadcast_message(body)
         print("Handshake session request received " + session.id)
+
+        Friend.add_friend(session.my_public_key, session.my_private_key,
+                          session.its_public_key, session.its_name)
+
         # Now, the session can be persisted, and it's not temporary anymore
 
     @staticmethod
@@ -106,6 +111,8 @@ class HandshakeSession:
                 its_public_key = inner_content.split(" ")[1]
                 session.its_public_key = its_public_key
                 print("Handshake session confirmed " + session.id)
+                Friend.add_friend(session.my_public_key, session.my_private_key,
+                                  session.its_public_key, session.its_name)
                 # Now, the session can be persisted, and it's not temporary anymore
 
 

@@ -1,5 +1,6 @@
 import socket
 import threading
+from Friend import Friend
 from HandshakeSession import HandshakeSession
 from Message import Message
 from UserInitiator import UserInitiation
@@ -72,6 +73,10 @@ HandshakeSession.my_pre_shared_key = pre_shared_key
 while True:
     raw_content = input()
 
+    if raw_content.startswith("friends"):
+        Friend.print_user_names()
+        continue
+
     if raw_content.startswith("friend"):
         my_user_name = input("Your user name:")
         its_user_name = input("Your friend's user name:")
@@ -87,6 +92,8 @@ while True:
         initiator = UserInitiation()
         initiator.initiate(client_id, destination_address,
                            destination_port, pre_shared_key)
+
+    continue
 
     if raw_content:
         destination_id = raw_content.split(" ")[0]
