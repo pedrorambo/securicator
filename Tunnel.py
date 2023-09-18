@@ -1,3 +1,4 @@
+import random
 import socket
 import time
 from Friend import Friend
@@ -114,8 +115,9 @@ class Tunnel:
             tunnel.ip = ip
 
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            # client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            print("Listen on 0.0.0.0 " + str(int(source_port)))
             client_socket.bind(("0.0.0.0", int(source_port)))
 
             print("Listening on " + source_port)
@@ -130,6 +132,7 @@ class Tunnel:
                     print(message)
 
             def send_keepalive():
+                time.sleep(random.randint(1, 10))
                 while True:
                     time.sleep(1)
                     print("Sending ping to " + ip + ":" + destination_port)
