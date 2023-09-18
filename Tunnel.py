@@ -44,12 +44,6 @@ def get_connection_requests_from_rendezvous_server(my_username):
     return requests
 
 
-def send_keepalive(ip, port):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    client_socket.sendto(("PING").encode(),
-                         (ip, int(port)))
-
-
 class Tunnel:
     def __init__(self):
         pass
@@ -109,24 +103,52 @@ class Tunnel:
             tunnel.destination_port = destination_port
             tunnel.ip = ip
 
-            def tunnel_receiver():
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                s.bind(('0.0.0.0', int(tunnel.source_port)))
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.bind(("0.0.0.0", int(source_port)))
+            print("Listening on " + source_port)
 
+            def receiver():
+                while (True):
+                    data = client_socket.recv(2048)
+                    print("RECEIVED DATA!!!!")
+                    message = data[0].decode()
+                    print(message)
+
+            def send_keepalive():
                 while True:
-                    data = s.recvfrom(2048)
-                    if data:
-                        message = data[0].decode()
-                        tunnel.last_received_keepalive = current_time_in_milliseconds()
-                        if message == "PING":
-                            print("Received ping")
-                        else:
-                            from Receiver import Receiver
-                            Receiver.parse_received_packet(message)
+                    time.sleep(1)
+                    client_socket.sendto(("PING").encode(),
+                                         (ip, int(destination_port)))
+                    print("Keepalive sent to port ", destination_port)
 
-            tunnel.receive_thread = threading.Thread(
-                target=tunnel_receiver)
-            tunnel.receive_thread.start()
+            t = threading.Thread(
+                target=send_keepalive)
+            t.start()
+
+            r = threading.Thread(
+                target=receiver)
+            r.start()
+
+            # def tunnel_receiver():
+            #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            #     s.bind(("0.0.0.0", int(tunnel.source_port)))
+            #     s.sendto(("PING").encode(),
+            #              (tunnel.ip, int(tunnel.destination_port)))
+
+            #     while True:
+            #         data = s.recvfrom(2048)
+            #         if data:
+            #             message = data[0].decode()
+            #             tunnel.last_received_keepalive = current_time_in_milliseconds()
+            #             if message == "PING":
+            #                 print("Received ping")
+            #             else:
+            #                 from Receiver import Receiver
+            #                 Receiver.parse_received_packet(message)
+
+            # tunnel.receive_thread = threading.Thread(
+            #     target=tunnel_receiver)
+            # tunnel.receive_thread.start()
 
             send_connection_request_to_rendezvous_server_with_ports(
                 my_username, from_username, tunnel.source_port, tunnel.destination_port)
@@ -153,7 +175,9 @@ class Tunnel:
     def send_tunnel_keepalives():
         for tunnel in Tunnel.tunnels:
             if tunnel.ip != None:
-                send_keepalive(tunnel.ip, tunnel.destination_port)
+                # send_keepalive(tunnel.ip, tunnel.source_port,
+                #                tunnel.destination_port)
+                pass
 
     @ staticmethod
     def send_to_username(username, content):
