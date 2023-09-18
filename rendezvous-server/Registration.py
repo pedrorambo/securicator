@@ -41,6 +41,13 @@ class Registration:
         return items
 
     @staticmethod
+    def get_ip_from_username(username):
+        for registration in Registration.registrations:
+            if registration.username == username:
+                return registration.ip
+        return None
+
+    @staticmethod
     def pop_for_username(username):
         for registration in Registration.registrations:
             if registration.username == username:

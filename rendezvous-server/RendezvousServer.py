@@ -35,9 +35,11 @@ def udpServer():
                 else:
                     request = PairRequest.register(
                         from_username, to_username, client[0])
-                s.sendto((str(request.from_port) + " " +
-                         str(request.to_port)).encode(), client)
-                print("[REQUE] " + from_username + " " + to_username)
+                registration = Registration.get_ip_from_username(to_username)
+                if registration != None:
+                    s.sendto((str(registration.ip) + " " + str(request.from_port) + " " +
+                              str(request.to_port)).encode(), client)
+                    print("[REQUE] " + from_username + " " + to_username)
             if (message.startswith("MY_REQUESTS")):
                 username = message.split(" ")[1]
                 requests = PairRequest.get_requests_to_username(username)
