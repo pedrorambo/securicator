@@ -1,6 +1,6 @@
 import time
 import socket
-import MessageHeader
+import Message
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket.settimeout(1.0)
