@@ -32,5 +32,20 @@ class Message:
             symmetric_key, friend.its_public_key)
         aes = AESCipher(symmetric_key)
         encrypted_message = aes.encrypt(message)
-        content = encrypted_symmetric_key + " " + encrypted_message
+        content = friend.its_public_key + " " + \
+            encrypted_symmetric_key + " " + encrypted_message
         broadcast_message("MESSAGE " + content)
+
+    @staticmethod
+    def parse_received_message(raw):
+        my_public_key = raw.split(" ")[0]
+        encrypted_symmetric_key = raw.split(" ")[1]
+        encrypted_content = raw.split(" ")[2]
+        friend = Friend.get_friend_by_my_public_key(my_public_key)
+        if not friend:
+            return
+        symmetric_key = RSA.decrypt_with_private_key(
+            encrypted_symmetric_key, friend.my_private_key)
+        aes = AESCipher(symmetric_key)
+        content = aes.decrypt(encrypted_content)
+        print(friend.username + ": " + content)

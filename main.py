@@ -30,6 +30,10 @@ def udpServer():
             if (message.startswith("START_HANDSHAKE_SESSION")):
                 HandshakeSession.receive_handshake_request(
                     message.split(" ")[1])
+            if (message.startswith("MESSAGE ")):
+                body = " ".join(message.split(" ")[1:])
+                Message.parse_received_message(body)
+
             if (message.startswith("PING")):
                 print("Ping received, and sent.")
                 s.sendto("PONG".encode(), data[1])

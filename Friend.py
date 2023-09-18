@@ -23,5 +23,11 @@ class Friend:
             if friend.username == username:
                 return friend
 
+    @staticmethod
+    def get_friend_by_my_public_key(my_public_key):
+        for friend in Friend.friends:
+            if friend.my_public_key == my_public_key:
+                return friend
+
 
 Friend.friends = []
