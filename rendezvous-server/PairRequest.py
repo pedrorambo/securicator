@@ -1,5 +1,6 @@
 import time
 import random
+from Registration import Registration
 
 PAIR_REQUEST_EXPIRE_TIME_IN_MILLISECONDS = 30000
 
@@ -18,8 +19,21 @@ class PairRequest:
         self.to_username = to_username
         self.from_ip = from_ip
         self.created_at = current_time_in_milliseconds()
-        self.from_port = random_port()
-        self.to_port = random_port()
+
+        found_sender_registration = Registration.pop_for_username(
+            from_username)
+        found_receiver_registration = Registration.pop_for_username(
+            to_username)
+
+        if found_sender_registration != None:
+            self.from_port = found_sender_registration.port
+        else:
+            self.from_port = random_port()
+
+        if found_receiver_registration != None:
+            self.to_port = found_receiver_registration.port
+        else:
+            self.to_port = random_port()
 
     @staticmethod
     def register(from_username, to_username, from_ip):

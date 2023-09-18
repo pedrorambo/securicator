@@ -1,6 +1,8 @@
 import socket
 import threading
 import time
+
+from Registration import Registration
 from PairRequest import PairRequest
 
 BUFFER_SIZE = 1024
@@ -15,8 +17,12 @@ def udpServer():
         data, client = s.recvfrom(BUFFER_SIZE)
         if data:
             message = data.decode()
-            print(data)
-            print("Message received. Raw content: " + message)
+            if (message.startswith("REGISTER")):
+                message = message.replace("\n", "")
+                username = message.split(" ")[1]
+                Registration.add(username, client[0], client[1])
+                print("[REGIS] " + username + " " +
+                      client[0] + " " + str(client[1]))
             if (message.startswith("REQUEST")):
                 from_username = message.split(" ")[1]
                 to_username = message.split(" ")[2]
@@ -31,18 +37,17 @@ def udpServer():
                         from_username, to_username, client[0])
                 s.sendto((str(request.from_port) + " " +
                          str(request.to_port)).encode(), client)
-                print("Registered pair request from " +
-                      from_username + " to " + to_username)
+                print("[REQUE] " + from_username + " " + to_username)
             if (message.startswith("MY_REQUESTS")):
                 username = message.split(" ")[1]
                 requests = PairRequest.get_requests_to_username(username)
-                print("User has " + str(len(requests)) + " pair requests")
                 out = ""
                 for request in requests:
                     out += request.from_username + " " + request.from_ip + " " + str(request.from_port) + " " + str(
                         request.to_port) + "\n"
                 s.sendto(out.encode(), client)
-                print("User requested to be registered")
+                print("[MYREQ] " + username + " " +
+                      str(len(requests)) + " requests")
 
 
 def expire_pair_requests():
@@ -51,8 +56,17 @@ def expire_pair_requests():
         PairRequest.expire_pair_requests()
 
 
+def expire_registration():
+    while True:
+        time.sleep(30)
+        Registration.expire()
+
+
 udp_server_thread = threading.Thread(target=udpServer)
 udp_server_thread.start()
 
 expire_thread = threading.Thread(target=expire_pair_requests)
 expire_thread.start()
+
+expire_registration_thread = threading.Thread(target=expire_registration)
+expire_registration_thread.start()
