@@ -9,7 +9,7 @@ def current_time_in_milliseconds():
 
 
 def random_port():
-    return random.randint(3000, 60000)
+    return random.randint(50000, 60000)
 
 
 class PairRequest:
