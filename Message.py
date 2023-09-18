@@ -1,3 +1,4 @@
+import base64
 import socket
 import uuid
 from Friend import Friend
@@ -31,7 +32,8 @@ class Message:
         encrypted_symmetric_key = RSA.encrypt_with_public_key(
             symmetric_key, friend.its_public_key)
         aes = AESCipher(symmetric_key)
-        encrypted_message = aes.encrypt(message)
+        encrypted_message = aes.encrypt(
+            base64.b64encode(message.encode()).decode("utf-8"))
         content = friend.its_public_key + " " + \
             encrypted_symmetric_key + " " + encrypted_message
         broadcast_message("MESSAGE " + content)
@@ -47,5 +49,6 @@ class Message:
         symmetric_key = RSA.decrypt_with_private_key(
             encrypted_symmetric_key, friend.my_private_key)
         aes = AESCipher(symmetric_key)
-        content = aes.decrypt(encrypted_content)
+        content = base64.b64decode(aes.decrypt(
+            encrypted_content)).decode("utf-8")
         print(friend.username + ": " + content)
