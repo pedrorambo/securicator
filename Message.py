@@ -1,54 +1,46 @@
 import base64
-import socket
-import uuid
-from Friend import Friend
-from RSA import RSA
-from AESCipher import AESCipher
-import random
-import string
 import time
+from SecurePacket import SecurePacket
+import uuid
 
-
-def random_symmetric_key():
-    length = 100
-    char_set = string.ascii_uppercase + string.ascii_lowercase + string.digits
-    return ''.join(random.sample(char_set*length, length))
-
-
-def broadcast_message(message):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    client_socket.sendto(message.encode(),
-                         ("127.0.0.1", 12000))
-    client_socket.sendto(message.encode(),
-                         ("127.0.0.1", 12001))
-
+def current_time_in_milliseconds():
+    return str(round(time.time() * 1000))
 
 class Message:
     @staticmethod
-    def send(username, message):
-        friend = Friend.get_friend_by_username(username)
-        symmetric_key = random_symmetric_key()
-        encrypted_symmetric_key = RSA.encrypt_with_public_key(
-            symmetric_key, friend.its_public_key)
-        aes = AESCipher(symmetric_key)
-        encrypted_message = aes.encrypt(
-            base64.b64encode(message.encode()).decode("utf-8"))
-        content = friend.its_public_key + " " + \
-            encrypted_symmetric_key + " " + encrypted_message
-        broadcast_message("MESSAGE " + content)
+    def persist():
+        with open("messages.csv", "w") as file:
+            for message in Message.messages:
+                file.write(message.id + ";" + message.created_at + ";" + message.username + ";" + str(message.content).replace("\n", "").replace(";", "") + "\n")
+
 
     @staticmethod
-    def parse_received_message(raw):
-        my_public_key = raw.split(" ")[0]
-        encrypted_symmetric_key = raw.split(" ")[1]
-        encrypted_content = raw.split(" ")[2]
-        friend = Friend.get_friend_by_my_public_key(my_public_key)
-        if not friend:
-            return
-        symmetric_key = RSA.decrypt_with_private_key(
-            encrypted_symmetric_key, friend.my_private_key)
-        aes = AESCipher(symmetric_key)
-        content = base64.b64decode(aes.decrypt(
-            encrypted_content)).decode("utf-8")
-        print(friend.username + ": " + content)
+    def send(username, message):
+        message_in_base64 = base64.b64encode(message.encode()).decode("utf-8")
+
+        message_entity = Message()
+        message_entity.id = str(uuid.uuid4())
+        message_entity.username = username
+        message_entity.content = message
+        message_entity.created_at = current_time_in_milliseconds()
+
+        SecurePacket.send(message_entity.username, "MESSAGE " + message_entity.id + " " +  message_entity.created_at +  " " + message_in_base64)
+
+        Message.messages.append(message_entity)
+
+    @staticmethod
+    def parse_received_message(friend, content):
+        id = content.split(" ")[1]
+        created_at = content.split(" ")[2]
+        message_in_base64 = content.split(" ")[3]
+        message = base64.b64decode(message_in_base64).decode("utf-8")
+        print(friend.username + ": " + message)
+
+        message_entity = Message()
+        message_entity.id = id
+        message_entity.username = friend.username
+        message_entity.content = message
+        message_entity.created_at = created_at
+        Message.messages.append(message_entity)
+
+Message.messages = []
