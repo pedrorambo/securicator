@@ -39,3 +39,5 @@ Other things worth trying:
 - Send both the packets at the same time (less than 1 second deviation)
 
 Either way, the relay server is the most compatible solution, the bad thing is that it adds a server resource cost.
+
+UPDATE: I just validated, and it was the DMZ that was causing the issue. To test it, I used my LTE connection, which uses asymmetric NAT. In that case, it worked when A started, and when B started, but always only the A (The router at my house with symmetric NAT) received message from the B (LTE with CG-NAT and asymmetric NAT). Probably, there's a way to make it work with asymmetric NAT.
