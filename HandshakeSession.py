@@ -40,6 +40,8 @@ class HandshakeSession:
 
         HandshakeSession.pending_sessions.append(session)
 
+        print("Handshake session requested " + session.id)
+
     @staticmethod
     def receive_handshake_request(packet_content):
         aes = AESCipher(HandshakeSession.my_pre_shared_key)
@@ -65,7 +67,7 @@ class HandshakeSession:
         encrypted_message = aes.encrypt(message)
         body = "CONFIRM_HANDSHAKE_SESSION " + encrypted_message
         broadcast_message(body)
-        print("Handshake session request received")
+        print("Handshake session request received " + session.id)
         # Now, the session can be persisted, and it's not temporary anymore
 
     @staticmethod
@@ -77,7 +79,7 @@ class HandshakeSession:
         its_public_key = content.split(" ")[2]
         for session in HandshakeSession.pending_sessions:
             if session.started_by_me == True and session.id == id:
-                print("Handshake confirmed")
+                print("Handshake session confirmed " + session.id)
                 # Now, the session can be persisted, and it's not temporary anymore
 
 
