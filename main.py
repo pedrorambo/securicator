@@ -25,7 +25,7 @@ def udpServer():
             message = data[0].decode()
             if (message.startswith("CONFIRM_HANDSHAKE_SESSION")):
                 HandshakeSession.receive_handshake_confirmation(
-                    message.split(" ")[1])
+                    " ".join(message.split(" ")[1:]))
             if (message.startswith("START_HANDSHAKE_SESSION")):
                 HandshakeSession.receive_handshake_request(
                     message.split(" ")[1])
