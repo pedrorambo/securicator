@@ -2,7 +2,7 @@ import socket
 import threading
 import time
 
-RELAY_SERVER_IP = "127.0.0.1"
+RELAY_SERVER_IP = "100.26.52.25"
 RELAY_SERVER_PORT = 5000
 
 
