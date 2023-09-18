@@ -111,7 +111,7 @@ class Tunnel:
                 while (True):
                     data = client_socket.recv(2048)
                     print("RECEIVED DATA!!!!")
-                    message = data[0].decode()
+                    message = data.decode()
                     print(message)
 
             def send_keepalive():
