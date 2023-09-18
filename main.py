@@ -23,8 +23,12 @@ def udpServer():
         data = s.recvfrom(BUFFER_SIZE)
         if data:
             message = data[0].decode()
+            if (message.startswith("CONFIRM_HANDSHAKE_SESSION")):
+                HandshakeSession.receive_handshake_confirmation(
+                    message.split(" ")[1])
             if (message.startswith("START_HANDSHAKE_SESSION")):
-                HandshakeSession.receive_handshake_start(message.split(" ")[1])
+                HandshakeSession.receive_handshake_request(
+                    message.split(" ")[1])
             if (message.startswith("PING")):
                 print("Ping received, and sent.")
                 s.sendto("PONG".encode(), data[1])
