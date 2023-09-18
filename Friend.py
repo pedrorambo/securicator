@@ -13,7 +13,6 @@ class Friend:
 
     @staticmethod
     def print_user_names():
-        print("Friends:")
         for friend in Friend.friends:
             print(friend.username)
 
