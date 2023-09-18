@@ -4,14 +4,19 @@ from Friend import Friend
 from HandshakeSession import HandshakeSession
 from Message import Message
 from UserInitiator import UserInitiation
+import os
+
+client_id = int(os.environ["COM_CLIENT_ID"])
+pre_shared_key = os.environ["COM_PRESHARED_KEY"]
+my_username = os.environ["COM_USERNAME"]
+
+HandshakeSession.my_pre_shared_key = pre_shared_key
 
 messages = []
 
 HOST = '0.0.0.0'
 BUFFER_SIZE = 1024
 
-print("Client ID:")
-client_id = input()
 port = int(client_id)
 
 
@@ -66,13 +71,11 @@ def send_sync(port):
 
 thread = threading.Thread(target=udpServer)
 thread.start()
-print("running...")
+# print("running...")
 
-send_sync(12000)
-send_sync(12001)
+# send_sync(12000)
+# send_sync(12001)
 
-pre_shared_key = input("Pre-shared key: ")
-HandshakeSession.my_pre_shared_key = pre_shared_key
 
 while True:
     raw_content = input()
@@ -82,9 +85,8 @@ while True:
         continue
 
     if raw_content.startswith("friend"):
-        my_user_name = input("Your user name: ")
-        its_user_name = input("Your friend's user name: ")
-        HandshakeSession.start_new_session(my_user_name, its_user_name)
+        friend_username = raw_content.split(" ")[1]
+        HandshakeSession.start_new_session(my_username, friend_username)
         continue
 
     if raw_content.startswith("message"):
