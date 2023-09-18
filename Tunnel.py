@@ -17,6 +17,7 @@ def register_on_rendezvous_server(my_username):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.sendto(("REGISTER " + my_username).encode(),
                          (RENDEZVOUS_SERVER_IP, RENDEZVOUS_SERVER_PORT))
+    client_socket.close()
 
 
 def send_connection_request_to_rendezvous_server(my_username, its_username):
@@ -24,6 +25,7 @@ def send_connection_request_to_rendezvous_server(my_username, its_username):
     client_socket.sendto(("REQUEST " + my_username + " " + its_username).encode(),
                          (RENDEZVOUS_SERVER_IP, RENDEZVOUS_SERVER_PORT))
     data = client_socket.recvfrom(1024)
+    client_socket.close()
     message = data[0].decode()
     source_port = message.split(" ")[0]
     destination_port = message.split(" ")[1]
@@ -34,6 +36,7 @@ def send_connection_request_to_rendezvous_server_with_ports(my_username, its_use
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.sendto(("REQUEST " + my_username + " " + its_username + " " + source_port + " " + destination_port).encode(),
                          (RENDEZVOUS_SERVER_IP, RENDEZVOUS_SERVER_PORT))
+    client_socket.close()
 
 
 def get_connection_requests_from_rendezvous_server(my_username):
@@ -41,6 +44,7 @@ def get_connection_requests_from_rendezvous_server(my_username):
     client_socket.sendto(("MY_REQUESTS " + my_username).encode(),
                          (RENDEZVOUS_SERVER_IP, RENDEZVOUS_SERVER_PORT))
     data = client_socket.recvfrom(2048)
+    client_socket.close()
     message = data[0].decode()
     requests = []
     lines = message.split("\n")
@@ -110,13 +114,17 @@ class Tunnel:
             tunnel.ip = ip
 
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             client_socket.bind(("0.0.0.0", int(source_port)))
 
             print("Listening on " + source_port)
 
             def receiver():
                 while (True):
-                    data = client_socket.recv(2048)
+                    time.sleep(2)
+                    (data, addr) = client_socket.recvfrom(2048)
+                    print(addr)
                     print("RECEIVED DATA!!!!")
                     message = data.decode()
                     print(message)
@@ -124,7 +132,8 @@ class Tunnel:
             def send_keepalive():
                 while True:
                     time.sleep(1)
-                    client_socket.sendto(("PING").encode(),
+                    print("Sending ping to " + ip + ":" + destination_port)
+                    client_socket.sendto("PING".encode(),
                                          (ip, int(destination_port)))
                     print("Keepalive sent to port ", destination_port)
 
@@ -196,6 +205,7 @@ class Tunnel:
                     socket.AF_INET, socket.SOCK_DGRAM)
                 client_socket.sendto(content.encode(),
                                      (tunnel.ip, int(tunnel.destination_port)))
+                client_socket.close()
 
 
 Tunnel.tunnels = []
