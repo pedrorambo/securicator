@@ -3,6 +3,28 @@ class Friend:
         pass
 
     @staticmethod
+    def persist():
+        with open("friends.csv", "w") as file:
+            for friend in Friend.friends:
+                file.write(friend.username + ";" + friend.my_public_key + ";" +
+                           friend.my_private_key + ";" + friend.its_public_key +
+                           "\n")
+    @staticmethod
+    def load():
+        try:
+            with open("friends.csv", "r") as file:
+                for line in file.readlines():
+                    friend = Friend()
+                    line = line.replace("\n", "")
+                    friend.username = line.replace("\n", "").split(";")[0]
+                    friend.my_public_key = line.replace("\n", "").split(";")[1]
+                    friend.my_private_key = line.replace("\n", "").split(";")[2]
+                    friend.its_public_key = line.replace("\n", "").split(";")[3]
+                    Friend.friends.append(friend)
+        except FileNotFoundError:
+            pass
+
+    @staticmethod
     def add_friend(my_public_key, my_private_key, its_public_key, username):
         friend = Friend()
         friend.username = username
