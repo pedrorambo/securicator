@@ -3,7 +3,7 @@ import time
 from Friend import Friend
 import threading
 
-RENDEZVOUS_SERVER_IP = "100.26.52.25"
+RENDEZVOUS_SERVER_IP = "127.0.0.1"
 RENDEZVOUS_SERVER_PORT = 4900
 
 EXPIRE_TUNNEL_IN_MILLISECONDS = 30000
@@ -11,6 +11,12 @@ EXPIRE_TUNNEL_IN_MILLISECONDS = 30000
 
 def current_time_in_milliseconds():
     return str(round(time.time() * 1000))
+
+
+def register_on_rendezvous_server(my_username):
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client_socket.sendto(("REGISTER " + my_username).encode(),
+                         (RENDEZVOUS_SERVER_IP, RENDEZVOUS_SERVER_PORT))
 
 
 def send_connection_request_to_rendezvous_server(my_username, its_username):
@@ -105,6 +111,7 @@ class Tunnel:
 
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             client_socket.bind(("0.0.0.0", int(source_port)))
+
             print("Listening on " + source_port)
 
             def receiver():
@@ -167,6 +174,7 @@ class Tunnel:
 
     @ staticmethod
     def maintain_tunnels(my_username):
+        register_on_rendezvous_server(my_username)
         Tunnel.receive_tunnel_requests(my_username)
         Tunnel.create_new_tunnels(my_username)
         Tunnel.expire_tunnels()
