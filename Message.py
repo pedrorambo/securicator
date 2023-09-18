@@ -17,6 +17,22 @@ class Message:
                            ";" + str(message.content).replace("\n", "").replace(";", "") + "\n")
 
     @staticmethod
+    def get_by_id(id):
+        for message in Message.messages:
+            if message.id == id:
+                return message
+
+    @staticmethod
+    def print_messages():
+        for message in Message.messages:
+            print("== " + message.id)
+            print(" Username: " + message.username)
+            print(" Delivered at: " + message.delivered_at)
+            print(" Read at: " + message.read_at)
+            print(" Content: " + message.content)
+            print()
+
+    @staticmethod
     def send(username, message):
         message_in_base64 = base64.b64encode(message.encode()).decode("utf-8")
 
@@ -44,6 +60,8 @@ class Message:
         message_entity.username = friend.username
         message_entity.content = message
         message_entity.created_at = created_at
+        message_entity.delivered_at = current_time_in_milliseconds()
+        message_entity.read_at = current_time_in_milliseconds()
         Message.messages.append(message_entity)
 
         SecurePacket.send(friend.username, "MESSAGE_DELIVERED" +
@@ -55,12 +73,16 @@ class Message:
     def parse_message_delivered(friend, content):
         id = content.split(" ")[1]
         delivered_at = content.split(" ")[2]
+        message = Message.get_by_id(id)
+        message.delivered_at = delivered_at
         print("[DELIVERED]")
 
     @staticmethod
     def parse_message_read(friend, content):
         id = content.split(" ")[1]
         read_at = content.split(" ")[2]
+        message = Message.get_by_id(id)
+        message.read_at = read_at
         print("[READ]")
 
 

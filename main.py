@@ -77,6 +77,10 @@ while True:
         Message.persist()
         continue
 
+    if (raw_content.startswith("messages")):
+        Message.print_messages()
+        continue
+
     if raw_content.startswith("message"):
         if len(raw_content.split(" ")) < 3:
             print("message <username> <message>")
