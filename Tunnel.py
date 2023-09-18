@@ -132,7 +132,6 @@ class Tunnel:
                     print(message)
 
             def send_keepalive():
-                time.sleep(random.randint(1, 10))
                 while True:
                     time.sleep(1)
                     print("Sending ping to " + ip + ":" + destination_port)
