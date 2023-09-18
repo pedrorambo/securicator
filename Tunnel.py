@@ -28,9 +28,10 @@ def send_connection_request_to_rendezvous_server(my_username, its_username):
     data = client_socket.recvfrom(1024)
     client_socket.close()
     message = data[0].decode()
-    source_port = message.split(" ")[0]
-    destination_port = message.split(" ")[1]
-    return (source_port, destination_port)
+    ip = message.split(" ")[0]
+    source_port = message.split(" ")[1]
+    destination_port = message.split(" ")[2]
+    return (ip, source_port, destination_port)
 
 
 def send_connection_request_to_rendezvous_server_with_ports(my_username, its_username, source_port, destination_port):
@@ -75,8 +76,35 @@ class Tunnel:
 
     @ staticmethod
     def force_tunnel(my_username, its_username):
-        send_connection_request_to_rendezvous_server(
+        (ip, source_port, destination_port) = send_connection_request_to_rendezvous_server(
             my_username, its_username)
+
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client_socket.bind(("0.0.0.0", int(source_port)))
+
+        def receiver():
+            while (True):
+                (data, addr) = client_socket.recvfrom(2048)
+                print(addr)
+                print("RECEIVED DATA!!!!")
+                message = data.decode()
+                print(message)
+
+        def send_keepalive():
+            while True:
+                time.sleep(1)
+                print("Sending ping to " + ip + ":" + destination_port)
+                client_socket.sendto("PING".encode(),
+                                     (ip, int(destination_port)))
+                print("Keepalive sent to port ", destination_port)
+
+        t = threading.Thread(
+            target=send_keepalive)
+        t.start()
+
+        r = threading.Thread(
+            target=receiver)
+        r.start()
 
     @ staticmethod
     def create_new_tunnels(my_username):
@@ -115,12 +143,7 @@ class Tunnel:
             tunnel.ip = ip
 
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            # client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-            print("Listen on 0.0.0.0 " + str(int(source_port)))
             client_socket.bind(("0.0.0.0", int(source_port)))
-
-            print("Listening on " + source_port)
 
             def receiver():
                 while (True):
@@ -168,8 +191,8 @@ class Tunnel:
             #     target=tunnel_receiver)
             # tunnel.receive_thread.start()
 
-            send_connection_request_to_rendezvous_server_with_ports(
-                my_username, from_username, tunnel.source_port, tunnel.destination_port)
+            # send_connection_request_to_rendezvous_server_with_ports(
+            #     my_username, from_username, tunnel.source_port, tunnel.destination_port)
 
             Tunnel.tunnels.append(tunnel)
 
