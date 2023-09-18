@@ -5,9 +5,10 @@ from Friend import Friend
 from HandshakeSession import HandshakeSession
 from Message import Message
 import os
+from Receiver import Receiver
+from Relay import Relay
 
 from SecurePacket import SecurePacket
-from Tunnel import Tunnel
 
 pre_shared_key = os.environ["COM_PRESHARED_KEY"]
 my_username = os.environ["COM_USERNAME"]
@@ -23,23 +24,11 @@ Friend.load(my_username)
 Message.load(my_username)
 
 
-def tunnel_keepalive():
-    while True:
-        time.sleep(1)
-        Tunnel.send_tunnel_keepalives()
+def handle_message(data):
+    Receiver.parse_received_packet(data)
 
 
-def tunnel_maintain():
-    while True:
-        time.sleep(1)
-        Tunnel.maintain_tunnels(my_username)
-
-
-tunnel_maintain_thread = threading.Thread(target=tunnel_maintain)
-tunnel_maintain_thread.start()
-
-tunnel_keepalive_thread = threading.Thread(target=tunnel_keepalive)
-tunnel_keepalive_thread.start()
+Relay.setup(my_username, handle_message)
 
 while True:
     raw_content = input()
@@ -70,7 +59,6 @@ while True:
             print("tunnel <username>")
             continue
         username = raw_content.split(" ")[1]
-        Tunnel.force_tunnel(my_username, username)
 
     if raw_content.startswith("message"):
         if len(raw_content.split(" ")) < 3:

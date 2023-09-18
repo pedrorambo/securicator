@@ -4,7 +4,7 @@ import string
 from AESCipher import AESCipher
 from Friend import Friend
 from RSA import RSA
-from Tunnel import Tunnel
+from Relay import Relay
 
 
 def random_symmetric_key():
@@ -25,7 +25,7 @@ class SecurePacket:
             base64.b64encode(content.encode()).decode("utf-8"))
         content = friend.its_public_key + " " + \
             encrypted_symmetric_key + " " + encrypted_message
-        Tunnel.send_to_username(username, "SECURE_PACKET " + content)
+        Relay.send(username, "SECURE_PACKET " + content)
 
     @staticmethod
     def parse_received(raw):

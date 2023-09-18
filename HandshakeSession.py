@@ -6,7 +6,7 @@ from AESCipher import AESCipher
 import random
 import string
 import time
-from Tunnel import Tunnel
+from Relay import Relay
 
 
 def current_time_in_milliseconds():
@@ -43,7 +43,7 @@ class HandshakeSession:
             session.my_public_key + " " + session.my_user_name
         encrypted_message = aes.encrypt(message)
         body = "START_HANDSHAKE_SESSION " + encrypted_message
-        Tunnel.send_to_username(its_name, body)
+        Relay.send(its_name, body)
 
         HandshakeSession.pending_sessions.append(session)
 
@@ -84,7 +84,7 @@ class HandshakeSession:
 
         body = "CONFIRM_HANDSHAKE_SESSION " + session.id + " " + \
             encrypted_symmetric_key + " " + encrypted_inner_content
-        Tunnel.send_to_username(session.its_name, body)
+        Relay.send(session.its_name, body)
         print("Handshake session request received " + session.id)
 
         Friend.add_friend(session.my_public_key, session.my_private_key,
