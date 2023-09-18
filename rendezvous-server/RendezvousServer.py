@@ -23,10 +23,19 @@ def udpServer():
             if (message.startswith("REQUEST")):
                 from_username = message.split(" ")[1]
                 to_username = message.split(" ")[2]
-                requests = PairRequest.register(
-                    from_username, to_username, client[0])
-                s.sendto("\n".encode(), client)
-                print("Pair request created")
+                request = None
+                if (len(message.split(" ")) > 4):
+                    from_port = message.split(" ")[3]
+                    to_port = message.split(" ")[4]
+                    request = PairRequest.register_with_ports(
+                        from_username, to_username, client[0], from_port, to_port)
+                else:
+                    request = PairRequest.register(
+                        from_username, to_username, client[0])
+                s.sendto((str(request.from_port) + " " +
+                         str(request.to_port)).encode(), client)
+                print("Registered pair request from " +
+                      from_username + " to " + to_username)
             if (message.startswith("MY_REQUESTS")):
                 username = message.split(" ")[1]
                 requests = PairRequest.get_requests_to_username(username)
