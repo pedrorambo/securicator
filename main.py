@@ -83,6 +83,12 @@ while True:
         HandshakeSession.start_new_session(my_user_name, its_user_name)
         continue
 
+    if raw_content.startswith("message"):
+        username = raw_content.split(" ")[1]
+        message = " ".join(raw_content.split(" ")[2:])
+        Message.send(username, message)
+        continue
+
     if raw_content.startswith("add"):
         client_id = raw_content.split(" ")[1]
         destination_address = raw_content.split(" ")[2]
