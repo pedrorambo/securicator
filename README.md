@@ -8,6 +8,7 @@
 - [x] Message persistance
 - [x] Rendez-vous server (Not in use, replaced by Relay)
 - [x] Relay server
+- [ ] Support offline message queue on the relay server
 - [ ] Synchronize messages between users
 - [ ] Group chat
 - [ ] File upload
