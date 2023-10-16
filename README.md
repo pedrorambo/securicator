@@ -1,5 +1,7 @@
 This is a PoC project of a distributed end-to-end encrypted messaging app. Since this app was used to learn more about encryption, messaging, and connection, I tried my best to document the architecture and issues I had while developing it. This system is not meant to be used in production without a broad security research, and software improvement, but it's a fun project to play with and extend.
 
+![Three terminals: Node A exchanging messages with Node B, the relay server forwarding the messages, and Node B exchanging messages with Node A](assets/hero.gif)
+
 # List of functionalities and characteristics of the app
 
 - Securely handshaking (adding) new contacts
@@ -77,6 +79,14 @@ To fix this, a way to communicate between multiple clients in different globally
 Two drawbacks I would like mentioning about that distributed relaying architecture is that anyone can say they are you (by using your username) and receiving messages directed to you, and there is a need to have a prior commuication with the contact you want to add, to exchange the pre-shared key. Virtually, there is no problem relaying a message to unwanted users, since the system uses a strong encryption, but also it isn't ideal. To fix this, the relay server can require the user pair to stablish a handshake between them, fixing the relay issue, but again the server would be allowed to intercept all those requests. As said before, the handshare requires that a pre-shared key is known between both users. Even the pre-shared key being used only once to stablish the encrypted handshake, if the packet is intercepted and the key is known by the interceptor, the whole secure communication process is compromised. For this, it's necessary that the users have a prior communication channel. They can physically exchange that information, use other encrypted and secure playform or send parts of the pre-shared key in multiple different communication platforms, or build a trust network between trust contacts, or require a personal information that only the person knows, to include in the key.
 
 # The handshake in-depth
+
+The handshake process is the first and most sensible part of starting a connection with other user. Following, there is a diagram, followed by a detailed explanation of each phase and decision.
+
+![Diagram of the handshake process between two nodes](assets/handshake.png)
+
+## Overview
+
+TODO: Describe the handshake
 
 ## Should we use a pre-shared, asymmetric or symmetric encryption?
 
@@ -157,9 +167,12 @@ This mappnig works as following:
 4. To know how to send the response back to your computer, the router saves the information necessary to map the response to your computer. An example of that table is shown below:
 
 | Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
+|---|---|---|---|---|---|
 | 192.168.100.20 | 98232 | 199.191.240.57 | 98232 | 8.8.8.8 | 53 |
 
 5. Now the router knows that when receiving a packet from Google's IP 8.8.8.8 with the source port 53, and the destination port 98232, it should forward the packet to your computer.
+
+![Diagram exemplifying network packets being NATed between a client and a server](assets/nat.png)
 
 That's the basic working of NAT. If we were not using NAT in this case, there could be two cenarios:
 
@@ -174,18 +187,22 @@ In most enterprise routers, it's possible to view the actual connection and NAT 
 NAT introduces a problem, whose side effect is a great security feature: only hosts with who you started a connection could respond to your computer. In other words, no server can by itself send packets to your computer. Let's return to our NAT table created in the previous section.
 
 | Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
+|---|---|---|---|---|---|
 | 192.168.100.20 | 98232 | 199.191.240.57 | 98232 | 8.8.8.8 | 53 |
 
 Now, imagine that your friend's IP 3.201.165.30 wants to connect to your computer 192.168.100.20 at port 9000. First, your computer has a private IP, and that private IP can't be used as a destination IP to a remote networn. For that, your friend must use your public IP 199.191.240.57. Now, when your friend sends a packet to your public IP with the destination port 9000, the router will look at the NAT table for the translated source port 9000, and will not find any registry. Due to the registry not being found, it will reject the packet. That behaviour (default to most routers) makes harder for any user to communicate with any other user on the internet.
 
 This is a good feature, because an old operating system publicly accessible to the internet is incredibly dangerous. Using NAT, no unwanted traffic from the internet will reach the old operating system.
 
+![Diagram exemplifying the UDP hole-punching process between two nodes in different NATed networks](asserts/udp-hole-punching.png)
+
 Note: Most routers that have NAT also allows port mapping configuration, in which you tell the router to always redirect a port to a specific internal IP, but that won't be considered because it's impractical to configure the router of each place you want to use this software, or in routers you don't control. Also, the port mapping is not a feature for users behind a [CGNAT](https://en.wikipedia.org/wiki/Carrier-grade_NAT), nor for users using mobile phone networks.
 
 To achieve peer-to-peer communication, we can take advantage of that port mapping and force it to accept connection from other host. For example, you can coordinate beforehand with the other host (Host B) that you're gonna use the destination port 9000, and the Host A the destination port 9001. Now, your computer will make a request, which will create a registry in the NAT table of your router (actually, it will also create registries in the CGNAT or mobile network router). After that, your router's table will look like the following:
 
 | Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-| 192.168.100.20 | 9001 | 199.191.240.57 | 90001 | 8.8.8.8 | 9000 |
+|---|---|---|---|---|---|
+| 192.168.100.20 | 9000 | 199.191.240.57 | 90001 | 8.8.8.8 | 9001 |
 
 After that, Host B won't receive this packet, but at least your router will have that mapping alive for about 30 seconds. Knowing that table, it's clear that if the host 199.191.240.57 sends a packet to your public IP with the destination port 90001, and the source port 9000, that packet will be redirected to your computer with the IP 192.168.100.20. In fact, that will actually work in most cases, and if you do this in both sides, you have a two-way peer-to-peer communication using UDP hole-punching.
 
@@ -198,12 +215,14 @@ For the UDP hole-punching to work, it's necessary to both the clients to know wh
 Previoulsy I mentioned that this will actually work in most cases because that will only work for routers with specific configuration, one being the Symmetric NAT, which is the one examplified previously. It's called symmetric because the source port your computer specified is the same one as the source port forwarded by your router to the internet (called the Translated source port).
 
 | Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-| 192.168.100.20 | 9001 | 199.191.240.57 | 90001 | 8.8.8.8 | 9000 |
+|---|---|---|---|---|---|
+| 192.168.100.20 | 9000 | 199.191.240.57 | 90001 | 8.8.8.8 | 9001 |
 
 Knowing the translated source port is essetial for UDP hole-punching. In a non-symmetric NAT, the router will use a different translated source port as the one your computer specified, and that will make the peer-to-peer connection not work.
 
 | Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-| 192.168.100.20 | 9001 | 199.191.240.57 | 97238 | 8.8.8.8 | 9000 |
+|---|---|---|---|---|---|
+| 192.168.100.20 | 9000 | 199.191.240.57 | 97238 | 8.8.8.8 | 9001 |
 
 That's one case in which your router won't allow the connection to work, but if the router has a demilitarized zone (when conducting the lab, my router had one, and that made the connection to not occur), even with symmetric NAT, the connection won't always work. That's because with the DMZ, any packet not mathing the NAT table is routed to the demilitarized zone IP, and the router will save that as a new mapping. Any new connection from your computer to the destination will force the router to choose a new port, since that port is already present in the NAT table. Also, if the timeout of that NAT table is too short, or it has some other specific configuration, the method won't work.
 
