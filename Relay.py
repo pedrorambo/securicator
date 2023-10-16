@@ -2,21 +2,21 @@ import socket
 import threading
 import time
 
-RELAY_SERVER_IP = ""
-RELAY_SERVER_PORT = 1
+server_ip = ""
+server_port = 1
 
 
 class Relay:
     @staticmethod
     def set_server(server, port):
-        RELAY_SERVER_IP = server
-        RELAY_SERVER_PORT = port
+        Relay.server_ip = server
+        Relay.server_port = port
 
     @staticmethod
     def setup(username, handle_message):
         sd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sd.sendto(("REGISTER " + username).encode(),
-                  (RELAY_SERVER_IP, RELAY_SERVER_PORT))
+                  (Relay.server_ip, Relay.server_port))
 
         def receive():
             while True:
@@ -28,7 +28,7 @@ class Relay:
             while True:
                 time.sleep(5)
                 sd.sendto(("KEEPALIVE " + username).encode(),
-                          (RELAY_SERVER_IP, RELAY_SERVER_PORT))
+                          (Relay.server_ip, Relay.server_port))
 
         receive_thread = threading.Thread(target=receive)
         receive_thread.start()
@@ -40,4 +40,4 @@ class Relay:
     def send(username, content):
         sd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sd.sendto(("SEND " + username + " " + content).encode(),
-                  (RELAY_SERVER_IP, RELAY_SERVER_PORT))
+                  (Relay.server_ip, Relay.server_port))
