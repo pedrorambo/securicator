@@ -14,7 +14,7 @@ pre_shared_key = TerminalForm.text().default_from_environment_variable(
     "COM_PRESHARED_KEY").default("123456").prompt_message("Enter your pre-shared key").read()
 
 relay_server_ip = TerminalForm.text().default_from_environment_variable(
-    "COM_RELAY_IP").required().prompt_message("Enter the relay server IP address").read()
+    "COM_RELAY_IP").default("127.0.0.1").prompt_message("Enter the relay server IP address").read()
 
 relay_server_port = int(TerminalForm.text().default_from_environment_variable(
     "COM_RELAY_PORT").default("5000").prompt_message("Enter the relay server port").read())
