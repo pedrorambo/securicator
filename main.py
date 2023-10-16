@@ -1,17 +1,30 @@
-import socket
-import threading
-import time
+import os
+
 from Friend import Friend
 from HandshakeSession import HandshakeSession
 from Message import Message
-import os
 from Receiver import Receiver
 from Relay import Relay
+from TerminalForm import TerminalForm
 
-from SecurePacket import SecurePacket
+my_username = TerminalForm.text().required().default_from_environment_variable(
+    "COM_USERNAME").prompt_message("Enter your username").read()
 
-pre_shared_key = os.environ["COM_PRESHARED_KEY"]
-my_username = os.environ["COM_USERNAME"]
+pre_shared_key = TerminalForm.text().default_from_environment_variable(
+    "COM_PRESHARED_KEY").default("123456").prompt_message("Enter your pre-shared key").read()
+
+relay_server_ip = TerminalForm.text().default_from_environment_variable(
+    "COM_RELAY_IP").required().prompt_message("Enter the relay server IP address").read()
+
+relay_server_port = int(TerminalForm.text().default_from_environment_variable(
+    "COM_RELAY_PORT").default("5000").prompt_message("Enter the relay server port").read())
+
+
+Relay.set_server(relay_server_ip, relay_server_port)
+
+print("Setup finished. The app is ready.")
+print("Available commands: friend message tunnel messages save")
+
 
 HandshakeSession.my_pre_shared_key = pre_shared_key
 

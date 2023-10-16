@@ -2,11 +2,16 @@ import socket
 import threading
 import time
 
-RELAY_SERVER_IP = "100.26.52.25"
-RELAY_SERVER_PORT = 5000
+RELAY_SERVER_IP = ""
+RELAY_SERVER_PORT = 1
 
 
 class Relay:
+    @staticmethod
+    def set_server(server, port):
+        RELAY_SERVER_IP = server
+        RELAY_SERVER_PORT = port
+
     @staticmethod
     def setup(username, handle_message):
         sd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
