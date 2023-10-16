@@ -92,7 +92,7 @@ class Message:
         delivered_at = content.split(" ")[2]
         message = Message.get_by_id(id)
         message.delivered_at = delivered_at
-        print("[DELIVERED]")
+        print(friend.username + ": Message delivered")
 
     @staticmethod
     def parse_message_read(friend, content):
@@ -100,7 +100,7 @@ class Message:
         read_at = content.split(" ")[2]
         message = Message.get_by_id(id)
         message.read_at = read_at
-        print("[READ]")
+        print(friend.username + ": Message read")
 
 
 Message.messages = []

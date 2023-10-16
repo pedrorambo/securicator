@@ -47,8 +47,6 @@ class HandshakeSession:
 
         HandshakeSession.pending_sessions.append(session)
 
-        print("Handshake session requested " + session.id)
-
     @staticmethod
     def receive_handshake_request(packet_content):
         aes = AESCipher(HandshakeSession.my_pre_shared_key)
@@ -85,7 +83,7 @@ class HandshakeSession:
         body = "CONFIRM_HANDSHAKE_SESSION " + session.id + " " + \
             encrypted_symmetric_key + " " + encrypted_inner_content
         Relay.send(session.its_name, body)
-        print("Handshake session request received " + session.id)
+        print("Friend request accepted from " + session.its_name)
 
         Friend.add_friend(session.my_public_key, session.my_private_key,
                           session.its_public_key, session.its_name)
@@ -107,7 +105,7 @@ class HandshakeSession:
                 timestamp = inner_content.split(" ")[0]
                 its_public_key = inner_content.split(" ")[1]
                 session.its_public_key = its_public_key
-                print("Handshake session confirmed " + session.id)
+                print(session.its_name + ": Accepted your friend request")
                 Friend.add_friend(session.my_public_key, session.my_private_key,
                                   session.its_public_key, session.its_name)
                 # Now, the session can be persisted, and it's not temporary anymore
