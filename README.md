@@ -40,7 +40,7 @@ $ python3 main.py
 Enter your username: nodeA
 Enter your pre-shared key [123456]:
 Enter the relay server IP address: 192.168.30.1
-Enter the relay server port [5000]: 
+Enter the relay server port [5000]:
 Setup finished. The app is ready.
 ```
 
@@ -64,7 +64,6 @@ After starting the app and informing the configuration values, it should be poss
 ```
 
 That's it! It's a simple application sending secure encrypted messages from one node to the other.
-
 
 ## What distributed and end-to-end enctypted means in the context of the project
 
@@ -94,12 +93,13 @@ Since the core of this project is the encryption, I tested each method to decide
 
 ### Pre-shared key
 
-The symmetric encryption with a pre-shared key is the easyest to note why it isn't the best option. First, it is the same to both users, so if that key is discovered, the complete process is compromised. 
+The symmetric encryption with a pre-shared key is the easyest to note why it isn't the best option. First, it is the same to both users, so if that key is discovered, the complete process is compromised.
 Second, even if generated randomly, being long and created by a trusted password generator, it must be known by both nodes before the handshake, which creates a problem: to securelly and privatelly exchange this key via another communication platform.
 
 Even the pre-shared key not being the best method to encrypt the content, it is conveninent to start the handshake with a new node. It's easier to share a pre-shared key with another user then it is to generate a key pair, and send the long public key to the other user. Also, it's easier to share parts of a pre-shared key in different communication medias the it is to send parts of a public key. Third, if there is a known secret between two nodes, you can derivate this secret.
 
 To exemplify, following there are an example of how a pre-shared key can be securely shared from Node A to Node B:
+
 1. User in Node A sends to User in Node B via a social media: The first part of the key is the text: mf8k49j7d348
 2. User in Node A sends to User in Node B via email: The second part of the key is the text 30m8dh30, and at the end, put the text we both know, that we talked about in the call we did an hour ago.
 
@@ -161,14 +161,15 @@ One method of peer-to-peer connection, which to the router doesn't appear to be 
 Due to the limited amount of IPv4 addresses (around 4 billions, whish is way less than the devices connected to the internet), most IPv4 routers (the one used at your home and at your office included) uses Network Address Translation (NAT) to allow multiple clients in a local network to use one single public IP.
 
 This mappnig works as following:
+
 1. Your computer with the IP 192.168.100.20 makes a DNS UDP request to Google's DNS server with the IP 8.8.8.8.
 2. Being DNS, the destination port is 53, and the source port is chosen (most often randomly) by your operating system.
 3. Before forwarding the packet to ther internet, your router changes the source address from 192.168.100.20 to the public IP of your home or office, for example 199.191.240.57.
 4. To know how to send the response back to your computer, the router saves the information necessary to map the response to your computer. An example of that table is shown below:
 
-| Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-|---|---|---|---|---|---|
-| 192.168.100.20 | 98232 | 199.191.240.57 | 98232 | 8.8.8.8 | 53 |
+| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
+| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
+| 192.168.100.20 | 98232             | 199.191.240.57  | 98232                  | 8.8.8.8     | 53          |
 
 5. Now the router knows that when receiving a packet from Google's IP 8.8.8.8 with the source port 53, and the destination port 98232, it should forward the packet to your computer.
 
@@ -186,23 +187,23 @@ In most enterprise routers, it's possible to view the actual connection and NAT 
 
 NAT introduces a problem, whose side effect is a great security feature: only hosts with who you started a connection could respond to your computer. In other words, no server can by itself send packets to your computer. Let's return to our NAT table created in the previous section.
 
-| Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-|---|---|---|---|---|---|
-| 192.168.100.20 | 98232 | 199.191.240.57 | 98232 | 8.8.8.8 | 53 |
+| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
+| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
+| 192.168.100.20 | 98232             | 199.191.240.57  | 98232                  | 8.8.8.8     | 53          |
 
 Now, imagine that your friend's IP 3.201.165.30 wants to connect to your computer 192.168.100.20 at port 9000. First, your computer has a private IP, and that private IP can't be used as a destination IP to a remote networn. For that, your friend must use your public IP 199.191.240.57. Now, when your friend sends a packet to your public IP with the destination port 9000, the router will look at the NAT table for the translated source port 9000, and will not find any registry. Due to the registry not being found, it will reject the packet. That behaviour (default to most routers) makes harder for any user to communicate with any other user on the internet.
 
 This is a good feature, because an old operating system publicly accessible to the internet is incredibly dangerous. Using NAT, no unwanted traffic from the internet will reach the old operating system.
 
-![Diagram exemplifying the UDP hole-punching process between two nodes in different NATed networks](asserts/udp-hole-punching.png)
+![Diagram exemplifying the UDP hole-punching process between two nodes in different NATed networks](assets/udp-hole-punching.png)
 
 Note: Most routers that have NAT also allows port mapping configuration, in which you tell the router to always redirect a port to a specific internal IP, but that won't be considered because it's impractical to configure the router of each place you want to use this software, or in routers you don't control. Also, the port mapping is not a feature for users behind a [CGNAT](https://en.wikipedia.org/wiki/Carrier-grade_NAT), nor for users using mobile phone networks.
 
 To achieve peer-to-peer communication, we can take advantage of that port mapping and force it to accept connection from other host. For example, you can coordinate beforehand with the other host (Host B) that you're gonna use the destination port 9000, and the Host A the destination port 9001. Now, your computer will make a request, which will create a registry in the NAT table of your router (actually, it will also create registries in the CGNAT or mobile network router). After that, your router's table will look like the following:
 
-| Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-|---|---|---|---|---|---|
-| 192.168.100.20 | 9000 | 199.191.240.57 | 90001 | 8.8.8.8 | 9001 |
+| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
+| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
+| 192.168.100.20 | 9000              | 199.191.240.57  | 90001                  | 8.8.8.8     | 9001        |
 
 After that, Host B won't receive this packet, but at least your router will have that mapping alive for about 30 seconds. Knowing that table, it's clear that if the host 199.191.240.57 sends a packet to your public IP with the destination port 90001, and the source port 9000, that packet will be redirected to your computer with the IP 192.168.100.20. In fact, that will actually work in most cases, and if you do this in both sides, you have a two-way peer-to-peer communication using UDP hole-punching.
 
@@ -214,15 +215,15 @@ For the UDP hole-punching to work, it's necessary to both the clients to know wh
 
 Previoulsy I mentioned that this will actually work in most cases because that will only work for routers with specific configuration, one being the Symmetric NAT, which is the one examplified previously. It's called symmetric because the source port your computer specified is the same one as the source port forwarded by your router to the internet (called the Translated source port).
 
-| Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-|---|---|---|---|---|---|
-| 192.168.100.20 | 9000 | 199.191.240.57 | 90001 | 8.8.8.8 | 9001 |
+| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
+| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
+| 192.168.100.20 | 9000              | 199.191.240.57  | 90001                  | 8.8.8.8     | 9001        |
 
 Knowing the translated source port is essetial for UDP hole-punching. In a non-symmetric NAT, the router will use a different translated source port as the one your computer specified, and that will make the peer-to-peer connection not work.
 
-| Local IPV4 | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-|---|---|---|---|---|---|
-| 192.168.100.20 | 9000 | 199.191.240.57 | 97238 | 8.8.8.8 | 9001 |
+| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
+| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
+| 192.168.100.20 | 9000              | 199.191.240.57  | 97238                  | 8.8.8.8     | 9001        |
 
 That's one case in which your router won't allow the connection to work, but if the router has a demilitarized zone (when conducting the lab, my router had one, and that made the connection to not occur), even with symmetric NAT, the connection won't always work. That's because with the DMZ, any packet not mathing the NAT table is routed to the demilitarized zone IP, and the router will save that as a new mapping. Any new connection from your computer to the destination will force the router to choose a new port, since that port is already present in the NAT table. Also, if the timeout of that NAT table is too short, or it has some other specific configuration, the method won't work.
 
@@ -234,7 +235,7 @@ Note 2: The system can be improved by having a hybrid interconnection strategy, 
 
 #### Issue with my home router
 
-Conducting some tests, I noticed that the UDP hole punching is not effective with the router I have. 
+Conducting some tests, I noticed that the UDP hole punching is not effective with the router I have.
 
 If I (A) start listening and send a packet to B, it works.
 
@@ -243,6 +244,7 @@ If B starts listening and send a packet to me (A), when I open the socket to lis
 It looks like my router creates a NAT registry for the packet, even if it's not expecting a new connection. Actually, as I'm writing this I remembered I configured a DMZ with an IP address other the the client I was testing. Probably that caused the issue, making the router accept any UDP or TCP connection and forward it to the DMZ IP. Later I'll do some testing and confirm this. Knowing that, probably this software won't work with routers that have DMZ enabled.
 
 Other things worth trying:
+
 - Send both the packets at the same time (less than 1 second deviation)
 
 Either way, the relay server is the most compatible solution, the bad thing is that it adds a server resource cost.
@@ -263,7 +265,7 @@ Aparently Skype uses or used P2P connections to transmit call data and files, sp
 
 Acording to the discussion in the thread [Is whatsapp peer to peer like skype? If yes, How am i able to send offline message to other people? If not, won't it be better to make it peer to peer since it will remove server connection overhead?](https://www.quora.com/Is-whatsapp-peer-to-peer-like-skype-If-yes-How-am-i-able-to-send-offline-message-to-other-people-If-not-wont-it-be-better-to-make-it-peer-to-peer-since-it-will-remove-server-connection-overhead) on Quora, WhatsApp appears to use a version of XMPP, which forwards the messages to central servers, so they can queue, store, and forward the messages to other clients. Aparently, that also happens for file transfer.
 
-### The solution: Relay servers 
+### The solution: Relay servers
 
 The most compatible solution found for the case of this application was the use of relay servers, which are central applications that forward messages between nodes.
 
@@ -285,7 +287,7 @@ In the section Extending this project, there is ideas on how this important feat
 
 TODO: Explain more
 
-- Relay and NAT TURN and NAT STUN. 
+- Relay and NAT TURN and NAT STUN.
 - Explain different ports in nat, the router reusing ports, etc.
 
 # Extending this project
