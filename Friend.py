@@ -27,6 +27,7 @@ class Friend:
                     friend.my_public_key = data["my_public_key"]
                     friend.my_private_key = data["my_private_key"]
                     friend.its_public_key = data["its_public_key"]
+                    friend.last_heartbeat = None
                     Friend.friends.append(friend)
         except FileNotFoundError:
             pass
@@ -38,12 +39,13 @@ class Friend:
         friend.my_public_key = my_public_key
         friend.my_private_key = my_private_key
         friend.its_public_key = its_public_key
+        friend.last_heartbeat = None
         Friend.friends.append(friend)
 
     @staticmethod
     def print_user_names():
         for friend in Friend.friends:
-            print(friend.username)
+            print(friend.username + ": " + str(friend.last_heartbeat))
 
     @staticmethod
     def get_friend_by_username(username):
