@@ -1,28 +1,31 @@
+import json
+
+from SecureFile import SecureFile
+
+
 class Friend:
     def __init__(self):
         pass
 
     @staticmethod
-    def persist(username):
-        with open(username+"-friends.csv", "w") as file:
-            for friend in Friend.friends:
-                file.write(friend.username + ";" + friend.my_public_key + ";" +
-                           friend.my_private_key + ";" + friend.its_public_key +
-                           "\n")
+    def persist(my_username):
+        file = SecureFile(my_username + "-friends.commsave")
+        for friend in Friend.friends:
+            file.append_line(Friend.to_json(friend.username))
 
     @staticmethod
     def load(username):
         try:
-            with open(username + "-friends.csv", "r") as file:
-                for line in file.readlines():
+            file = SecureFile(username + "-friends.commsave")
+            lines = file.read_all_lines()
+            for line in lines:
+                if len(line) > 1:
+                    data = json.loads(line)
                     friend = Friend()
-                    line = line.replace("\n", "")
-                    friend.username = line.replace("\n", "").split(";")[0]
-                    friend.my_public_key = line.replace("\n", "").split(";")[1]
-                    friend.my_private_key = line.replace(
-                        "\n", "").split(";")[2]
-                    friend.its_public_key = line.replace(
-                        "\n", "").split(";")[3]
+                    friend.username = data["username"]
+                    friend.my_public_key = data["my_public_key"]
+                    friend.my_private_key = data["my_private_key"]
+                    friend.its_public_key = data["its_public_key"]
                     Friend.friends.append(friend)
         except FileNotFoundError:
             pass
@@ -56,6 +59,16 @@ class Friend:
     @staticmethod
     def get_all_friends():
         return Friend.friends
-
+    
+    @staticmethod
+    def to_json(username):
+        for friend in Friend.friends:
+            if(friend.username == username):  
+                return json.dumps({
+                    "username": friend.username,
+                    "my_public_key": friend.my_public_key,
+                    "my_private_key": friend.my_private_key,
+                    "its_public_key": friend.its_public_key
+                })
 
 Friend.friends = []
