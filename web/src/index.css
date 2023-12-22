@@ -1,0 +1,105 @@
+html{
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.main-container{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  height: 100vh;
+  width: 100vw;
+}
+
+.friends-container{
+  width: 400px;
+  background-color: #f1f1f1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-container{
+  width: 100%;
+  background-color: #ffffff;
+
+}
+
+.friend{
+  padding: 1rem;
+  cursor: pointer;
+
+  text-decoration: none;
+  display: inline-block;
+  width: 100%;
+}
+
+.friend:hover{
+  background-color: #e1e1e1;
+}
+
+.friend h3{
+  margin: 0;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.friend .friend-horizontal{
+  display: flex;
+  flex-direction: row;
+  align-items: start;
+  gap: .5rem;
+}
+
+.friend .friend-status{
+  width: .625rem;
+  height: .625rem;
+  border-radius: .625rem;
+  background-color: #bbbbbb;
+  margin-top: .375rem;
+}
+
+.friend .friend-status.online{
+  background-color: #2ecc71;
+}
+
+.friend .last-seen{
+  margin: 0;
+  font-size: .8rem;
+  color: #969696;
+}
+
+.friends-list{
+  height: 100%;
+}
+
+
+.btn{
+  margin: 1rem;
+  padding: .5rem;
+  border-radius: 6px;
+  outline: none;
+  background: #e1e1e1;
+  color: #454545;
+
+  text-decoration: none;
+  font-size: 1rem;
+  text-align: center;
+  display: inline-block;
+}
+
+.btn:hover{
+  background-color: #d0d0d0;
+}
