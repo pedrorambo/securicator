@@ -20,6 +20,7 @@ class Message:
 
     @staticmethod
     def load(username):
+        return
         try:
             with open(username + "-messages.csv", "r") as file:
                 for line in file.readlines():
