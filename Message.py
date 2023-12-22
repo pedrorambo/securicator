@@ -63,11 +63,13 @@ class Message:
         message_entity.delivered_at = None
         message_entity.read_at = None
         message_entity.created_at = current_time_in_milliseconds()
-
-        SecurePacket.send(message_entity.username, "MESSAGE " + message_entity.id +
-                          " " + message_entity.created_at + " " + message_in_base64)
-
+        message_entity.send_packet()
         Message.messages.append(message_entity)
+
+    def send_packet(self):
+        message_in_base64 = base64.b64encode(self.content.encode()).decode("utf-8")
+        SecurePacket.send(self.username, "MESSAGE " + self.id +
+                          " " + self.created_at + " " + message_in_base64)
 
     @staticmethod
     def parse_received_message(friend, content):
@@ -117,6 +119,10 @@ class Message:
             "delivered_at": message.delivered_at,
             "read_at": message.read_at
         })
+    
+    @staticmethod
+    def get_all_messages():
+        return Message.messages
 
 
 Message.messages = []

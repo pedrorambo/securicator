@@ -29,4 +29,9 @@ class Receiver:
                     Message.parse_message_read(friend, content)
                 if verb == "HEARTBEAT":
                     timestamp = int(content.split(" ")[1])
+                    if friend.last_heartbeat == None or friend.last_heartbeat < (timestamp - 15000):
+                        messages = Message.get_all_messages()
+                        for message in messages:
+                            if message.username == friend.username and message.delivered_at == None:
+                                message.send_packet()
                     friend.last_heartbeat = timestamp
