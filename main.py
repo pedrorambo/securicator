@@ -1,4 +1,5 @@
 import os
+from App import App
 
 from Friend import Friend
 from HandshakeSession import HandshakeSession
@@ -26,6 +27,7 @@ Relay.set_server(relay_server_ip, relay_server_port)
 print("Setup finished. The app is ready.")
 print("Available commands: friend message tunnel messages save")
 
+app = App(my_username)
 
 HandshakeSession.my_pre_shared_key = pre_shared_key
 
