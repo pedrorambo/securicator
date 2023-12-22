@@ -2,6 +2,10 @@ class SecureFile:
     def __init__(self, path):
         self.path = path
 
+    def clear(self):
+        with open(self.path, "w") as file:
+            file.write("")
+
     def append_line(self, content):
         with open(self.path, "a") as file:
             file.write(content + "\n")

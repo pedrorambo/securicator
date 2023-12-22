@@ -10,6 +10,7 @@ class Friend:
     @staticmethod
     def persist(my_username):
         file = SecureFile(my_username + "-friends.commsave")
+        file.clear()
         for friend in Friend.friends:
             file.append_line(Friend.to_json(friend.username))
 

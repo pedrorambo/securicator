@@ -1,5 +1,7 @@
 import base64
+import json
 import time
+from SecureFile import SecureFile
 from SecurePacket import SecurePacket
 import uuid
 
@@ -11,10 +13,10 @@ def current_time_in_milliseconds():
 class Message:
     @staticmethod
     def persist(username):
-        with open(username + "-messages.csv", "w") as file:
-            for message in Message.messages:
-                file.write(message.id + ";" + message.created_at + ";" + message.username +
-                           ";" + str(message.content).replace("\n", "").replace(";", "") + ";" + message.delivered_at + ";" + message.read_at + "\n")
+        file = SecureFile(username + "-messages.commsave")
+        file.clear()
+        for message in Message.messages:
+            file.append_line(Message.to_json(message))
 
     @staticmethod
     def load(username):
@@ -57,6 +59,8 @@ class Message:
         message_entity.id = str(uuid.uuid4())
         message_entity.username = username
         message_entity.content = message
+        message_entity.delivered_at = None
+        message_entity.read_at = None
         message_entity.created_at = current_time_in_milliseconds()
 
         SecurePacket.send(message_entity.username, "MESSAGE " + message_entity.id +
@@ -101,6 +105,17 @@ class Message:
         message = Message.get_by_id(id)
         message.read_at = read_at
         print(friend.username + ": Message read")
+
+    @staticmethod
+    def to_json(message):
+        return json.dumps({
+            "id": message.id,
+            "created_at": message.created_at,
+            "username": message.username,
+            "content": message.content,
+            "delivered_at": message.delivered_at,
+            "read_at": message.read_at
+        })
 
 
 Message.messages = []
