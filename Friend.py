@@ -53,5 +53,9 @@ class Friend:
             if friend.my_public_key == my_public_key:
                 return friend
 
+    @staticmethod
+    def get_all_friends():
+        return Friend.friends
+
 
 Friend.friends = []

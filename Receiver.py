@@ -27,3 +27,6 @@ class Receiver:
                     Message.parse_message_delivered(friend, content)
                 if verb == "MESSAGE_READ":
                     Message.parse_message_read(friend, content)
+                if verb == "HEARTBEAT":
+                    # print("Heartbeat received from " + friend.username)
+                    pass

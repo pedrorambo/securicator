@@ -2,6 +2,7 @@ import os
 
 from Friend import Friend
 from HandshakeSession import HandshakeSession
+from Heartbeat import Heartbeat
 from Message import Message
 from Receiver import Receiver
 from Relay import Relay
@@ -42,6 +43,8 @@ def handle_message(data):
 
 
 Relay.setup(my_username, handle_message)
+
+Heartbeat.setup()
 
 while True:
     raw_content = input()
