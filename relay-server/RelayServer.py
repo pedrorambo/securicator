@@ -6,7 +6,6 @@ from Registration import Registration
 BUFFER_SIZE = 2048
 DEFAULT_PORT = 5000
 
-
 def udpServer():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind(('0.0.0.0', DEFAULT_PORT))

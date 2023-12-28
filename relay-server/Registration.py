@@ -1,8 +1,6 @@
 import time
-import random
 
 REGISTRATION_EXPIRE_TIME_IN_MILLISECONDS = 30000
-
 
 def current_time_in_milliseconds():
     return str(round(time.time() * 1000))
