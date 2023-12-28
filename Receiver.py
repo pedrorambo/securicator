@@ -23,10 +23,16 @@ class Receiver:
                 verb = content.split(" ")[0]
                 if verb == "MESSAGE":
                     Message.parse_received_message(friend, content)
+                if verb == "MESSAGE_SEGMENT":
+                    Message.parse_received_message_segment(friend, content)
                 if verb == "MESSAGE_DELIVERED":
                     Message.parse_message_delivered(friend, content)
                 if verb == "MESSAGE_READ":
                     Message.parse_message_read(friend, content)
+                if verb == "MESSAGE_REQUEST_SEGMENTS":
+                    Message.parse_segments_requested(friend, content)
+                if verb == "SEGMENT":
+                    Message.parse_received_segment(friend, content)
                 if verb == "HEARTBEAT":
                     timestamp = int(content.split(" ")[1])
                     if friend.last_heartbeat == None or friend.last_heartbeat < (timestamp - 15000):

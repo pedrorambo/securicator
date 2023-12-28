@@ -1,4 +1,3 @@
-import socket
 import uuid
 from Friend import Friend
 from RSA import RSA

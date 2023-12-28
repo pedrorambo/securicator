@@ -1,4 +1,5 @@
 import json
+from App import App
 
 from SecureFile import SecureFile
 
@@ -8,16 +9,16 @@ class Friend:
         pass
 
     @staticmethod
-    def persist(my_username):
-        file = SecureFile(my_username + "-friends.commsave")
+    def persist():
+        file = SecureFile(App.get_friends_database_path())
         file.clear()
         for friend in Friend.friends:
             file.append_line(Friend.to_json(friend.username))
 
     @staticmethod
-    def load(username):
+    def load():
         try:
-            file = SecureFile(username + "-friends.commsave")
+            file = SecureFile(App.get_friends_database_path())
             lines = file.read_all_lines()
             for line in lines:
                 if len(line) > 1:
@@ -41,6 +42,7 @@ class Friend:
         friend.its_public_key = its_public_key
         friend.last_heartbeat = None
         Friend.friends.append(friend)
+        Friend.persist()
 
     @staticmethod
     def print_user_names():
