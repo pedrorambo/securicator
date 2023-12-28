@@ -1,4 +1,8 @@
+import base64
 import os
+import re
+import threading
+import uuid
 from App import App
 
 from Friend import Friend
@@ -7,7 +11,12 @@ from Heartbeat import Heartbeat
 from Message import Message
 from Receiver import Receiver
 from Relay import Relay
+from RestApi import RestApi
 from TerminalForm import TerminalForm
+
+def sanitize_filename(input):
+    return re.sub(r'[^a-zA-Z0-9\ \-\_]', "_", input)
+
 
 my_username = TerminalForm.text().required().default_from_environment_variable(
     "COM_USERNAME").prompt_message("Enter your username").read()
@@ -16,7 +25,7 @@ pre_shared_key = TerminalForm.text().default_from_environment_variable(
     "COM_PRESHARED_KEY").default("123456").prompt_message("Enter your pre-shared key").read()
 
 relay_server_ip = TerminalForm.text().default_from_environment_variable(
-    "COM_RELAY_IP").default("127.0.0.1").prompt_message("Enter the relay server IP address").read()
+    "COM_RELAY_IP").default("161.35.126.56").prompt_message("Enter the relay server IP address").read()
 
 relay_server_port = int(TerminalForm.text().default_from_environment_variable(
     "COM_RELAY_PORT").default("5000").prompt_message("Enter the relay server port").read())
@@ -25,19 +34,17 @@ relay_server_port = int(TerminalForm.text().default_from_environment_variable(
 Relay.set_server(relay_server_ip, relay_server_port)
 
 print("Setup finished. The app is ready.")
-print("Available commands: friend message tunnel messages save")
+print("Available commands: friend message messages save")
 
-app = App(my_username)
+App.set_username(my_username)
 
 HandshakeSession.my_pre_shared_key = pre_shared_key
 
-messages = []
+Friend.load()
+Message.load()
 
-BUFFER_SIZE = 1024
-DEFAULT_PORT = 12000
-
-Friend.load(my_username)
-Message.load(my_username)
+fetch_segments_thread = threading.Thread(target=Message.fetch_segments)
+fetch_segments_thread.start()
 
 
 def handle_message(data):
@@ -45,8 +52,72 @@ def handle_message(data):
 
 
 Relay.setup(my_username, handle_message)
-
 Heartbeat.setup()
+
+def get_friends(query, body):
+    parsed_friends = []
+    for friend in Friend.get_all_friends():
+        parsed_friends.append({
+            "username": friend.username,
+            "lastHeartbeat": friend.last_heartbeat
+        })
+    return parsed_friends
+
+def get_status(query, body):
+    return {
+        "relayConnected": Relay.connected
+    }
+
+def get_messages(query, body):
+    username = query["username"][0]
+    parsed = []
+    for message in Message.get_all_messages_from_username(username):
+        parsed.append({
+            "id": message.id,
+            "createdAt": message.created_at,
+            "username": message.username,
+            "receiverUsername": message.receiver_username,
+            "senderUsername": message.sender_username,
+            "content": message.content,
+            "deliveredAt": message.delivered_at,
+            "readAt": message.read_at,
+            "fileName": message.file_name
+        })
+    return parsed
+
+def send_message(query, body):
+    friend = Friend.get_friend_by_username(body["username"])
+    if friend == None:
+        print("Friend not found")
+    else:
+        if body["type"] == "file":
+            id = str(uuid.uuid4())
+            _, file_extension = os.path.splitext(body["filename"])
+            file_path = App.get_media_path() + id + "." + sanitize_filename(file_extension.replace(".", ""))
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(body["contentInBase64"]))
+            Message.send_file(id, friend.username, body["filename"], file_path)
+        else:
+            Message.send(friend.username, body["message"])
+
+def add_friend(query, body):
+    friend = Friend.get_friend_by_username(body["username"])
+    if friend == None:
+        HandshakeSession.start_new_session(my_username, body["username"])
+
+api = RestApi()
+api.get("/friends", get_friends)
+api.get("/messages", get_messages)
+api.get("/status", get_status)
+api.post("/messages", send_message)
+api.post("/add-friend", add_friend)
+api.serve_files("/media", App.get_media_path())
+try:
+    api_thread = threading.Thread(target=api.listen, args=("127.0.0.1", 8000))
+    api_thread.start()
+except: 
+    pass
+
 
 while True:
     raw_content = input()
@@ -60,23 +131,18 @@ while True:
             print("friend <username>")
             continue
         friend_username = raw_content.split(" ")[1]
+
         HandshakeSession.start_new_session(my_username, friend_username)
         continue
 
     if raw_content.startswith("save"):
-        Friend.persist(my_username)
-        Message.persist(my_username)
+        Friend.persist()
+        Message.persist()
         continue
 
     if (raw_content.startswith("messages")):
         Message.print_messages()
         continue
-
-    if (raw_content.startswith("tunnel")):
-        if len(raw_content.split(" ")) < 2:
-            print("tunnel <username>")
-            continue
-        username = raw_content.split(" ")[1]
 
     if raw_content.startswith("message"):
         if len(raw_content.split(" ")) < 3:
