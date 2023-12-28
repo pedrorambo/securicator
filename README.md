@@ -323,3 +323,13 @@ Currently, when a user receives a friend request from one which have the same pr
 ## Username uniqueness
 
 When using the "distributed" architectured of this project, we cannot rely on the uniqueness of the usernames. The relay server is prepared to work with duplicate usernames, but the nodes are not tested to that case.
+
+# TODO: SPEED LIMITATION / THE NEW CHALLANGE: "LARGE" CONTENT, AND "FAST" TRANSFER SPEEDS
+
+Practical UDP limitations: MTU of 1500, and practical maximum safe UDP payload size
+
+Sending pieces of files. MTU, max UDP and TCP size
+
+https://skerritt.blog/bit-torrent/
+
+Slow start in TCP: https://www.isi.edu/nsnam/DIRECTED_RESEARCH/DR_HYUNAH/D-Research/slow-start-tcp.html?ref=skerritt.blog
