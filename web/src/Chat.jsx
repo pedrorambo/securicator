@@ -3,6 +3,8 @@ import "./index.css";
 import { useParams } from "react-router";
 import { DragDrop } from "./DragDrop";
 
+const browserLanguage = navigator.language || navigator.userLanguage;
+
 function formatBytes(bytes, decimals = 2) {
   if (!+bytes) return "0 Bytes";
 
@@ -46,14 +48,20 @@ async function getBase64(file) {
 function formatMessageDate(d) {
   const now = new Date();
   const date = new Date(Number(d));
+  const isToday = now.toDateString() === date.toDateString();
+  if (isToday) {
+    return date.toLocaleTimeString(browserLanguage, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
 
-  const differenceInSeconds = (now.getTime() - date.getTime()) / 1000;
-  const differenceInMinutes = Math.floor(differenceInSeconds / 60);
-  const differenceInHours = Math.floor(differenceInSeconds / 60 / 60);
-  if (differenceInSeconds < 60) return "now";
-  if (differenceInMinutes < 60) return `${differenceInMinutes}m`;
-  if (differenceInHours < 24) return `${differenceInHours}h`;
-  return date.toLocaleString();
+  return date.toLocaleString(browserLanguage, {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "numeric",
+    month: "2-digit",
+  });
 }
 
 function Chat() {
