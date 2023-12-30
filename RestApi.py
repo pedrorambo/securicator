@@ -59,6 +59,9 @@ class BaseServer(BaseHTTPRequestHandler):
         if not found:
             self.send_response(404)
             self.end_headers()
+            
+    def log_message(a, b, c, d, e):
+        pass
 
     def do_GET(self):
         self.general_handler("GET")
