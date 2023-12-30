@@ -333,3 +333,23 @@ Sending pieces of files. MTU, max UDP and TCP size
 https://skerritt.blog/bit-torrent/
 
 Slow start in TCP: https://www.isi.edu/nsnam/DIRECTED_RESEARCH/DR_HYUNAH/D-Research/slow-start-tcp.html?ref=skerritt.blog
+
+# Send 1MB TCP streams
+
+If it is required to not have an overhead in each chunk of data, the chunks needs to be sent sequentially over a TCP connection (I'm not sure about that). It doesn't seem to be a good solution to lock both sides of a Relay while sending this data. In that case, maybe a good idea is to first receive the 1MB in the Relay, and then to send it to the destination at once. Maybe 100KB is a good number for each chunk.
+
+Sending from one client to the other would block both sides of the communication.
+
+## The (not ideal) first architecture decision
+
+UDP looks like a good option, but the server network could easily be congested. Also, it is more common to UDP packets be blocked by the firewall
+
+[](https://skerritt.blog/bit-torrent/)
+
+[](https://www.isi.edu/nsnam/DIRECTED_RESEARCH/DR_HYUNAH/D-Research/slow-start-tcp.html?ref=skerritt.blog)
+
+[](https://www.bittorrent.org/beps/bep_0029.html)
+
+# Vulnerabilities
+
+Guess the distance based on the latency in multiple servers. This can be resolved by applyng a random delay in the client for each request.
