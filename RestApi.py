@@ -94,6 +94,10 @@ class RestApi:
 
 
     def listen(self, host, port):
-        self.server = HTTPServer((host, port), BaseServer)
-        print("Server started http://%s:%s" % (host, port))
-        self.server.serve_forever()
+        try:
+            self.server = HTTPServer((host, port), BaseServer)
+            print("Server started http://%s:%s" % (host, port))
+            self.server.serve_forever()
+        except Exception as e:
+            print("RestApi exception", str(e))
+            pass

@@ -37,7 +37,7 @@ class Receiver:
                     if friend.last_heartbeat == None or friend.last_heartbeat < (timestamp - 15000):
                         messages = Message.get_all_messages()
                         for message in messages:
-                            print(message.delivered_at, message.complete, message.sender_username, message.receiver_username, friend.username)
+                            # print(message.delivered_at, message.complete, message.sender_username, message.receiver_username, friend.username)
                             if message.delivered_at == None and message.complete == True and message.sender_username == App.get_username() and message.receiver_username == friend.username:
                                 message.send_packet()
                     friend.last_heartbeat = timestamp
