@@ -70,6 +70,7 @@ function Chat() {
   const [messageContent, setMessageContent] = useState("");
   const [alreadyScrolled, setAlreadyScrolled] = useState(false);
   const [files, setFiles] = useState([]);
+  const [lockScrollToEnd, setLockScrollToEnd] = useState(true);
   const chatHistoryRef = useRef();
 
   const totalFileSize = useMemo(() => {
@@ -216,9 +217,25 @@ function Chat() {
     return () => document.removeEventListener("keypress", fn);
   }, [onSend]);
 
+  useEffect(() => {
+    if (lockScrollToEnd) {
+      chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+    }
+  }, [lockScrollToEnd, messages]);
+
   return (
     <div className="chat-container">
-      <div className="chat-history" ref={chatHistoryRef}>
+      <div
+        className="chat-history"
+        ref={chatHistoryRef}
+        onScroll={(e) => {
+          const isEnd =
+            Math.abs(
+              e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight
+            ) < 10;
+          setLockScrollToEnd(isEnd);
+        }}
+      >
         {!messages.length && (
           <p className="no-messages">
             No messages yet. Send one to start the conversation.
