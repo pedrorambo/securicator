@@ -135,6 +135,10 @@ code {
   color: #ffffff;
 }
 
+.message-container-sent a {
+  color: #ffffff;
+}
+
 .message-container-received .message-content {
 }
 
@@ -311,4 +315,8 @@ input {
   background-color: transparent;
   padding: 0;
   border-radius: 6px;
+}
+
+a.friend {
+  color: #454545;
 }
