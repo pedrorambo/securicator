@@ -10,8 +10,6 @@ from SecureFile import SecureFile
 from SecurePacket import SecurePacket
 import uuid
 
-from TextSmallMessageEntity import TextSmallMessageEntity
-
 MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST = 1
 MAX_CONCURRENT_DISTRIBUTED_SEGMENTS_TO_REQUEST = MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST
 
@@ -131,13 +129,6 @@ class Message:
         message_entity.send_packet()
         Message.persist()
         
-    
-    @staticmethod
-    def send_text_small(username, content):
-        message = TextSmallMessageEntity.create(username, content)
-        Message.messages.append(message)
-        Message.persist()
-
     @staticmethod
     def send_file(id, username, file_name, file_path):
         message_entity = Message()

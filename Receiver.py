@@ -1,5 +1,4 @@
 from App import App
-from BigPacket import BigPacket
 from HandshakeSession import HandshakeSession
 from SecurePacket import SecurePacket
 from Message import Message
@@ -17,9 +16,6 @@ class Receiver:
         if (message.startswith("MESSAGE ")):
             body = " ".join(message.split(" ")[1:])
             Message.parse_received_message(body)
-        if (message.startswith("BIGPACKET ")):
-            body = " ".join(message.split(" ")[1:])
-            BigPacket.parse_received(body)
         if (message.startswith("SECURE_PACKET ")):
             body = " ".join(message.split(" ")[1:])
             response = SecurePacket.parse_received(body)
@@ -34,8 +30,6 @@ class Receiver:
                     Message.parse_message_read(friend, content)
                 if verb == "MESSAGE_REQUEST_SEGMENTS":
                     Message.parse_segments_requested(friend, content)
-                if verb == "HEADBIGPACKET":
-                    BigPacket.parse_head_received(friend, content)
                 if verb == "SEGMENT":
                     Message.parse_received_segment(friend, content)
                 if verb == "HEARTBEAT":
