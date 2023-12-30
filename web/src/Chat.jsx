@@ -218,7 +218,9 @@ function Chat() {
         )}
         {messages.map((m) => (
           <div
-            className={`message-container message-container-${m.direction}`}
+            className={`message-container message-container-${m.direction} ${
+              m.showPreviewImage ? "image-message" : ""
+            }`}
             key={m.id}
           >
             <div>
@@ -243,7 +245,7 @@ function Chat() {
                         <br />
                       </>
                     )}
-                    {m.fileName}
+                    {!m.showPreviewImage && m.fileName}
                   </p>
                 </a>
               ) : (
