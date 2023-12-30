@@ -31,13 +31,13 @@ relay_server_port = int(TerminalForm.text().default_from_environment_variable(
     "COM_RELAY_PORT").default("5000").prompt_message("Enter the relay server port").read())
 
 
-Relay.set_server(relay_server_ip, relay_server_port)
 
 print("Setup finished. The app is ready.")
 print("Available commands: friend message messages save")
 
 App.set_username(my_username)
 
+Relay.set_server(relay_server_ip, relay_server_port)
 HandshakeSession.my_pre_shared_key = pre_shared_key
 
 Friend.load()

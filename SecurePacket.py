@@ -29,15 +29,20 @@ class SecurePacket:
 
     @staticmethod
     def parse_received(raw):
-        my_public_key = raw.split(" ")[0]
-        encrypted_symmetric_key = raw.split(" ")[1]
-        encrypted_content = raw.split(" ")[2]
-        friend = Friend.get_friend_by_my_public_key(my_public_key)
-        if not friend:
+        try:
+            my_public_key = raw.split(" ")[0]
+            encrypted_symmetric_key = raw.split(" ")[1]
+            encrypted_content = raw.split(" ")[2]
+            friend = Friend.get_friend_by_my_public_key(my_public_key)
+            if not friend:
+                return None
+            symmetric_key = RSA.decrypt_with_private_key(
+                encrypted_symmetric_key, friend.my_private_key)
+            aes = AESCipher(symmetric_key)
+            content = base64.b64decode(aes.decrypt(
+                encrypted_content)).decode("utf-8")
+            return (friend, content)
+        except Exception as e:
+            print(e)
             return None
-        symmetric_key = RSA.decrypt_with_private_key(
-            encrypted_symmetric_key, friend.my_private_key)
-        aes = AESCipher(symmetric_key)
-        content = base64.b64decode(aes.decrypt(
-            encrypted_content)).decode("utf-8")
-        return (friend, content)
+    

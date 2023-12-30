@@ -1,3 +1,5 @@
+from App import App
+from BigPacket import BigPacket
 from HandshakeSession import HandshakeSession
 from SecurePacket import SecurePacket
 from Message import Message
@@ -15,6 +17,9 @@ class Receiver:
         if (message.startswith("MESSAGE ")):
             body = " ".join(message.split(" ")[1:])
             Message.parse_received_message(body)
+        if (message.startswith("BIGPACKET ")):
+            body = " ".join(message.split(" ")[1:])
+            BigPacket.parse_received(body)
         if (message.startswith("SECURE_PACKET ")):
             body = " ".join(message.split(" ")[1:])
             response = SecurePacket.parse_received(body)
@@ -23,14 +28,14 @@ class Receiver:
                 verb = content.split(" ")[0]
                 if verb == "MESSAGE":
                     Message.parse_received_message(friend, content)
-                if verb == "MESSAGE_SEGMENT":
-                    Message.parse_received_message_segment(friend, content)
                 if verb == "MESSAGE_DELIVERED":
                     Message.parse_message_delivered(friend, content)
                 if verb == "MESSAGE_READ":
                     Message.parse_message_read(friend, content)
                 if verb == "MESSAGE_REQUEST_SEGMENTS":
                     Message.parse_segments_requested(friend, content)
+                if verb == "HEADBIGPACKET":
+                    BigPacket.parse_head_received(friend, content)
                 if verb == "SEGMENT":
                     Message.parse_received_segment(friend, content)
                 if verb == "HEARTBEAT":
@@ -38,6 +43,7 @@ class Receiver:
                     if friend.last_heartbeat == None or friend.last_heartbeat < (timestamp - 15000):
                         messages = Message.get_all_messages()
                         for message in messages:
-                            if message.username == friend.username and message.delivered_at == None:
+                            print(message.delivered_at, message.complete, message.sender_username, message.receiver_username, friend.username)
+                            if message.delivered_at == None and message.complete == True and message.sender_username == App.get_username() and message.receiver_username == friend.username:
                                 message.send_packet()
                     friend.last_heartbeat = timestamp

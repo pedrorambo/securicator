@@ -5,19 +5,20 @@ import os
 import re
 import time
 from App import App
+from Friend import Friend
 from SecureFile import SecureFile
 from SecurePacket import SecurePacket
 import uuid
 
 from TextSmallMessageEntity import TextSmallMessageEntity
 
-# MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST = 1000
-# MAX_CONCURRENT_DISTRIBUTED_SEGMENTS_TO_REQUEST = 100
-MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST = 50
-MAX_CONCURRENT_DISTRIBUTED_SEGMENTS_TO_REQUEST = 50
+MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST = 1
+MAX_CONCURRENT_DISTRIBUTED_SEGMENTS_TO_REQUEST = MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST
 
-SEGMENT_SIZE_IN_BYTES = 100
+SEGMENT_SIZE_IN_BYTES = 100000
 
+def current_time_in_milliseconds_as_number():
+    return round(time.time() * 1000)
 
 def current_time_in_milliseconds():
     return str(round(time.time() * 1000))
@@ -40,31 +41,44 @@ class Message:
                 file.append_line(Message.to_json(message))
 
     @staticmethod
+    def fetch_next_segment():
+        for message in Message.messages:
+            if message.complete or message.sender_username == App.get_username() or message.segment_amount == 0:
+                continue
+            friend = Friend.get_friend_by_username(message.sender_username)
+            if friend.last_heartbeat == None or current_time_in_milliseconds_as_number() - friend.last_heartbeat > 30000:
+                continue
+            print("Fetching segments: ", str(math.floor((len(message.fetched_segments) / message.segment_amount) * 100)), "%")
+            if len(message.fetched_segments) == 0:
+                last_segment = min(message.segment_amount - 1, MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST)
+                Message.fetched_last_segment_at = current_time_in_milliseconds_as_number()
+                SecurePacket.send(message.username, "MESSAGE_REQUEST_SEGMENTS " + message.id + " " + "0-" + str(last_segment))
+                break
+            else:
+                last_segment = max(message.fetched_segments)
+                if (message.segment_amount - 1) - last_segment > 10:
+                    first_segment = last_segment + 1
+                    last_segment = min(message.segment_amount - 1, last_segment + MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST)
+                    Message.fetched_last_segment_at = current_time_in_milliseconds_as_number()
+                    SecurePacket.send(message.username, "MESSAGE_REQUEST_SEGMENTS " + message.id + " " + str(first_segment) + "-" + str(last_segment))
+                    break
+                else:
+                    missing_segments = []
+                    for i in range(0, message.segment_amount):
+                        if str(i) not in message.fetched_segments:
+                            missing_segments.append(str(i))
+                    segments_to_request = missing_segments[:MAX_CONCURRENT_DISTRIBUTED_SEGMENTS_TO_REQUEST]
+                    Message.fetched_last_segment_at = current_time_in_milliseconds_as_number()
+                    SecurePacket.send(message.username, "MESSAGE_REQUEST_SEGMENTS " + message.id + " " + ",".join(segments_to_request))
+                    break
+        
+
+    @staticmethod
     def fetch_segments():
         while(True):
-            for message in Message.messages:
-                if (not message.complete) and message.segment_amount > 0:
-                    print("Fetching segments: ", str(math.floor((len(message.fetched_segments) / message.segment_amount) * 100)), "%")
-                    if len(message.fetched_segments) == 0:
-                        last_segment = min(message.segment_amount - 1, MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST)
-                        print("Requesting segment " + "0-" + str(last_segment))
-                        SecurePacket.send(message.username, "MESSAGE_REQUEST_SEGMENTS " + message.id + " " + "0-" + str(last_segment))
-                    else:
-                        last_segment = max(message.fetched_segments)
-                        if (message.segment_amount - 1) - last_segment > 10:
-                            first_segment = last_segment + 1
-                            last_segment = min(message.segment_amount - 1, last_segment + MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST)
-                            print("Requesting segment " + str(first_segment) + "-" + str(last_segment))
-                            SecurePacket.send(message.username, "MESSAGE_REQUEST_SEGMENTS " + message.id + " " + str(first_segment) + "-" + str(last_segment))
-                        else:
-                            missing_segments = []
-                            for i in range(0, message.segment_amount):
-                                if str(i) not in message.fetched_segments:
-                                    missing_segments.append(str(i))
-                            segments_to_request = missing_segments[:MAX_CONCURRENT_DISTRIBUTED_SEGMENTS_TO_REQUEST]
-                            print("Requesting segment " + ",".join(segments_to_request))
-                            SecurePacket.send(message.username, "MESSAGE_REQUEST_SEGMENTS " + message.id + " " + ",".join(segments_to_request))
-            time.sleep(1)
+            if (current_time_in_milliseconds_as_number() - Message.fetched_last_segment_at) > 5000:
+                Message.fetch_next_segment()
+            time.sleep(.5)
 
     @staticmethod
     def load():
@@ -99,7 +113,7 @@ class Message:
         message_entity = Message()
         message_entity.id = str(uuid.uuid4())
         message_entity.username = username
-        message_entity.sender_username = None
+        message_entity.sender_username = App.get_username()
         message_entity.receiver_username = username
         message_entity.content = message
         message_entity.delivered_at = None
@@ -129,7 +143,7 @@ class Message:
         message_entity = Message()
         message_entity.id = id
         message_entity.username = username
-        message_entity.sender_username = None
+        message_entity.sender_username = App.get_username()
         message_entity.receiver_username = username
         message_entity.content = "File"
         message_entity.delivered_at = None
@@ -161,29 +175,6 @@ class Message:
             "fileName": self.file_name,
         })
         SecurePacket.send(self.username, "MESSAGE " + json_content)
-        # if len(message_in_base64) > SEGMENT_SIZE_IN_BYTES:
-        #     res=[message_in_base64[y-SEGMENT_SIZE_IN_BYTES:y] for y in range(SEGMENT_SIZE_IN_BYTES, len(message_in_base64)+SEGMENT_SIZE_IN_BYTES,SEGMENT_SIZE_IN_BYTES)]
-        #     json_content = json.dumps({
-        #         "id": self.id,
-        #         "createdAt": self.created_at,
-        #         "content": base64.b64encode("Segmented".encode()).decode("utf-8"),
-        #         "segmentAmount": len(res)
-        #     })
-        #     SecurePacket.send(self.username, "MESSAGE " + json_content)
-        #     for index, segment in enumerate(res):
-        #         json_content = json.dumps({
-        #             "id": self.id,
-        #             "index": index,
-        #             "content": segment,
-        #         })
-        #         SecurePacket.send(self.username, "MESSAGE_SEGMENT " + json_content)
-        # else:
-        #     json_content = json.dumps({
-        #         "id": self.id,
-        #         "createdAt": self.created_at,
-        #         "content": message_in_base64,
-        #     })
-        #     SecurePacket.send(self.username, "MESSAGE " + json_content)
 
     @staticmethod
     def parse_received_message(friend, content):
@@ -200,7 +191,7 @@ class Message:
         message_entity = Message()
         message_entity.id = id
         message_entity.username = friend.username
-        message_entity.receiver_username = None
+        message_entity.receiver_username = App.get_username()
         message_entity.sender_username = friend.username
         message_entity.content = message
         message_entity.created_at = created_at
@@ -257,36 +248,20 @@ class Message:
                 for segment in segments:
                     f.seek(SEGMENT_SIZE_IN_BYTES * segment)
                     data = f.read(SEGMENT_SIZE_IN_BYTES)
-                    json_content = json.dumps({
-                        "id": message_id,
-                        "content": base64.b64encode(data).decode("utf-8"),
-                        "index": segment
+                    base64_content = base64.b64encode(data).decode("utf-8")
+                    payload = json.dumps({
+                        "id": message.id,
+                        "index": segment,
+                        "content": base64_content
                     })
-                    SecurePacket.send(friend.username, "SEGMENT " + json_content)
+                    SecurePacket.send(friend.username, "SEGMENT " + payload)
         else:
             return "a"
-        
-    @staticmethod
-    def parse_received_message_segment(friend, content):
-        json_content = content.split(" ", 1)[1]
-        content = json.loads(json_content)
-
-        message = Message.get_by_id(content["id"])
-        message.segments.append(content)
-
-        if message.segment_amount == len(message.segments):
-            final_string = ""
-            for i in range(message.segment_amount):
-                final_string += message.segments[i]["content"]
-            content = base64.b64decode(final_string).decode("utf-8")
-            message.segment_amount = 0
-            message.segments = []
-            message.content = content
-            Message.persist()
-            print(friend.username + ": " + message.content)
 
     @staticmethod
     def parse_received_segment(friend, content):
+        Message.fetch_next_segment()
+
         json_content = content.split(" ", 1)[1]
         content = json.loads(json_content)
 
@@ -339,6 +314,7 @@ class Message:
             "type": message.type,
             "fileName": message.file_name,
             "fileSize": message.file_size,
+            "segmentAmount": message.segment_amount,
             "complete": message.complete,
             "deliveredAt": message.delivered_at,
             "readAt": message.read_at
@@ -357,13 +333,11 @@ class Message:
         message.delivered_at = parsed["deliveredAt"]
         message.read_at = parsed["readAt"]
         message.segments = []
-        message.segment_amount = 0
+        message.segment_amount = parsed["segmentAmount"]
         message.complete = True
         message.type = parsed["type"]
         message.file_name = parsed["fileName"]
         message.file_size = parsed["fileSize"]
-        message.segment_amount = 0
-        message.segments = []
         return message
     
     @staticmethod
@@ -378,5 +352,5 @@ class Message:
                 messages.append(message)
         return messages
 
-
 Message.messages = []
+Message.fetched_last_segment_at = 0
