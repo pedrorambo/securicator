@@ -8,8 +8,12 @@ export const DragDrop = ({ children, onUpload }) => {
     drop.current.addEventListener("drop", handleDrop);
 
     return () => {
-      drop.current.removeEventListener("dragover", handleDragOver);
-      drop.current.removeEventListener("drop", handleDrop);
+      try {
+        drop.current.removeEventListener("dragover", handleDragOver);
+        drop.current.removeEventListener("drop", handleDrop);
+      } catch (error) {
+        console.error(error);
+      }
     };
   }, []);
 

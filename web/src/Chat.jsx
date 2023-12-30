@@ -1,7 +1,29 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./index.css";
 import { useParams } from "react-router";
 import { DragDrop } from "./DragDrop";
+
+function formatBytes(bytes, decimals = 2) {
+  if (!+bytes) return "0 Bytes";
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = [
+    "Bytes",
+    "KiB",
+    "MiB",
+    "GiB",
+    "TiB",
+    "PiB",
+    "EiB",
+    "ZiB",
+    "YiB",
+  ];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
 
 async function getBase64(file) {
   return new Promise((resolve, reject) => {
@@ -41,6 +63,15 @@ function Chat() {
   const [alreadyScrolled, setAlreadyScrolled] = useState(false);
   const [files, setFiles] = useState([]);
   const chatHistoryRef = useRef();
+
+  const totalFileSize = useMemo(() => {
+    if (!files.length) return 0;
+    let total = 0;
+    for (const file of files) {
+      total += file.size;
+    }
+    return formatBytes(total);
+  }, [files]);
 
   useEffect(() => {
     let requesting = false;
@@ -88,6 +119,44 @@ function Chat() {
   }, [username]);
 
   useEffect(() => {
+    document.onpaste = function (event) {
+      const data = event.clipboardData || event.originalEvent.clipboardData;
+      const items = data.items;
+
+      for (const index in items) {
+        var item = items[index];
+        console.log(item);
+        if (
+          item.kind === "file" &&
+          ["image/jpeg", "image/png"].includes(item.type)
+        ) {
+          const extension = item.type.includes("png") ? "png" : "jpg";
+          event.preventDefault();
+          var blob = item.getAsFile();
+          var reader = new FileReader();
+          reader.onload = function (event) {
+            const uriIndex = event.target.result.indexOf(";base64,");
+            const base64 = event.target.result.slice(uriIndex + 8);
+            setFiles((old) => [
+              ...old,
+              {
+                name: `Image_${index + 1}.${extension}`,
+                size: base64.length,
+                base64,
+              },
+            ]);
+          };
+          reader.readAsDataURL(blob);
+        }
+      }
+    };
+
+    return () => {
+      document.onpaste = null;
+    };
+  }, []);
+
+  useEffect(() => {
     if (alreadyScrolled) return;
     if (messages.length) {
       setAlreadyScrolled(true);
@@ -95,19 +164,18 @@ function Chat() {
     }
   }, [messages, alreadyScrolled]);
 
-  const onSend = useCallback(() => {
+  const onSend = useCallback(async () => {
     if (files.length) {
       for (const file of files) {
-        getBase64(file).then((content) => {
-          fetch(`http://localhost:8000/messages`, {
-            method: "POST",
-            body: JSON.stringify({
-              type: "file",
-              contentInBase64: content,
-              filename: file.name,
-              username,
-            }),
-          });
+        const content = file.base64 || (await getBase64(file));
+        await fetch(`http://localhost:8000/messages`, {
+          method: "POST",
+          body: JSON.stringify({
+            type: "file",
+            contentInBase64: content,
+            filename: file.name,
+            username,
+          }),
         });
       }
       setFiles([]);
@@ -127,6 +195,18 @@ function Chat() {
       }
     }
   }, [messageContent, username, files]);
+
+  useEffect(() => {
+    const fn = (e) => {
+      if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        onSend();
+      }
+    };
+    document.addEventListener("keypress", fn);
+    return () => document.removeEventListener("keypress", fn);
+  }, [onSend]);
 
   return (
     <div className="chat-container">
@@ -201,9 +281,15 @@ function Chat() {
           }}
         >
           {files.length ? (
-            <p>
-              {files.length} {files.length === 1 ? "file" : "files"}
-            </p>
+            <>
+              <button type="button" onClick={() => setFiles([])}>
+                X
+              </button>
+              <p className="files-selected-label">
+                {files.length} {files.length === 1 ? "file" : "files"} selected{" "}
+                {files.length > 0 && <> - {totalFileSize}</>}
+              </p>
+            </>
           ) : (
             <textarea
               autoFocus

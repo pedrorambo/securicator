@@ -293,3 +293,14 @@ input {
   border-radius: 2px;
   background-color: white;
 }
+
+.files-selected-label {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  background-color: #208cff13;
+  border-radius: 0.3rem;
+  color: #626262;
+  padding: 1rem;
+}
