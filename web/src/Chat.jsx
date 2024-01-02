@@ -72,6 +72,38 @@ function Chat() {
   const [files, setFiles] = useState([]);
   const [lockScrollToEnd, setLockScrollToEnd] = useState(true);
   const chatHistoryRef = useRef();
+  const [onFocus, setOnFocus] = useState(false);
+  const [loadMore, setLoadMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [reachedTopEnd, setReachedTopEnd] = useState(false);
+
+  useEffect(() => {
+    const onFocus = () => setOnFocus(true);
+    const onBlur = () => setOnFocus(false);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    onFocus();
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (onFocus && messages && messages.length) {
+      const unreadMessages = messages.filter(
+        (m) => !m.readAt && m.direction === "received"
+      );
+      if (unreadMessages.length) {
+        fetch(`http://localhost:8000/reads`, {
+          method: "POST",
+          body: JSON.stringify({
+            ids: unreadMessages.map((m) => m.id),
+          }),
+        });
+      }
+    }
+  }, [onFocus, messages]);
 
   const totalFileSize = useMemo(() => {
     if (!files.length) return 0;
@@ -94,8 +126,8 @@ function Chat() {
       )
         .then((res) => res.json())
         .then((data) => {
-          setMessages(
-            data.map((m) => {
+          setMessages((old) => {
+            const parsed = data.map((m) => {
               const indicatorVariant = m.readAt
                 ? "read"
                 : m.deliveredAt
@@ -116,8 +148,18 @@ function Chat() {
                 fileExtension,
                 showPreviewImage,
               };
-            })
-          );
+            });
+            const newValues = [...old];
+            for (const item of parsed) {
+              const index = newValues.findIndex((m) => m.id === item.id);
+              if (index === -1) {
+                newValues.push(item);
+              } else {
+                newValues[index] = item;
+              }
+            }
+            return newValues.sort((a, b) => a.createdAt - b.createdAt);
+          });
         })
         .finally(() => (requesting = false));
     };
@@ -126,6 +168,14 @@ function Chat() {
     const interval = setInterval(doRequest, 1000);
     return () => clearInterval(interval);
   }, [username]);
+
+  const oldestMessageId = useMemo(() => {
+    if (messages && messages.length) {
+      return messages[0].id;
+    } else {
+      return null;
+    }
+  }, [messages]);
 
   useEffect(() => {
     document.onpaste = function (event) {
@@ -223,12 +273,70 @@ function Chat() {
     }
   }, [lockScrollToEnd, messages]);
 
+  useEffect(() => {
+    if (isLoadingMore || reachedTopEnd) return;
+    if (oldestMessageId && loadMore) {
+      setIsLoadingMore(true);
+      fetch(
+        `http://localhost:8000/messages?username=${encodeURIComponent(
+          username
+        )}&before=${oldestMessageId}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          setMessages((old) => {
+            const parsed = data.map((m) => {
+              const indicatorVariant = m.readAt
+                ? "read"
+                : m.deliveredAt
+                ? "delivered"
+                : "registered";
+              const direction =
+                m.senderUsername === username ? "received" : "sent";
+              const fileExtension = m.fileName
+                ? m.fileName.split(".").pop()
+                : null;
+              const showPreviewImage = fileExtension
+                ? ["png", "jpg", "jpeg", "webp", "gif"].includes(fileExtension)
+                : null;
+              return {
+                ...m,
+                indicatorVariant,
+                direction,
+                fileExtension,
+                showPreviewImage,
+              };
+            });
+            const newValues = [...old];
+            for (const item of parsed) {
+              const index = newValues.findIndex((m) => m.id === item.id);
+              if (index === -1) {
+                newValues.push(item);
+              } else {
+                newValues[index] = item;
+              }
+            }
+            return newValues.sort((a, b) => a.createdAt - b.createdAt);
+          });
+          setLoadMore(false);
+          if (data.length === 0) setReachedTopEnd(true);
+        })
+        .finally(() => setIsLoadingMore(false));
+    }
+  }, [loadMore, oldestMessageId, username, isLoadingMore, reachedTopEnd]);
+
   return (
     <div className="chat-container">
+      <div className="chat-topbar">
+        <h3>{username}</h3>
+        <p></p>
+      </div>
       <div
         className="chat-history"
         ref={chatHistoryRef}
         onScroll={(e) => {
+          const isTop = e.currentTarget.scrollTop <= 1000;
+          if (isTop) setLoadMore(true);
           const isEnd =
             Math.abs(
               e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight
@@ -257,7 +365,7 @@ function Chat() {
                 >
                   <p
                     className={`message-content ${
-                      m.readAt ? "" : "message-muted"
+                      m.deliveredAt ? "" : "message-muted"
                     }`}
                   >
                     {m.showPreviewImage && (
@@ -276,7 +384,7 @@ function Chat() {
               ) : (
                 <p
                   className={`message-content ${
-                    m.readAt ? "" : "message-muted"
+                    m.deliveredAt ? "" : "message-muted"
                   }`}
                 >
                   {m.content}
@@ -319,6 +427,7 @@ function Chat() {
             </>
           ) : (
             <textarea
+              maxLength={65536}
               autoFocus
               value={messageContent}
               onChange={(e) => setMessageContent(e.target.value || "")}

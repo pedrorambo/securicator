@@ -320,3 +320,27 @@ input {
 a.friend {
   color: #454545;
 }
+
+.chat-topbar {
+  width: 100%;
+  border-bottom: 1px solid #dadada;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.chat-topbar h3,
+.chat-topbar p {
+  margin: 0;
+}
+
+.chat-topbar p {
+  min-height: 1rem;
+  color: #969696;
+}
+
+.bottom-buttons {
+  display: flex;
+  gap: 1rem;
+}
