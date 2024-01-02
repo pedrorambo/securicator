@@ -6,12 +6,14 @@ import re
 import time
 from App import App
 from Friend import Friend
+from Notifier import Notifier
 from SecureFile import SecureFile
 from SecurePacket import SecurePacket
 import uuid
 
 MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST = 1
 MAX_CONCURRENT_DISTRIBUTED_SEGMENTS_TO_REQUEST = MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST
+AMOUNT_OF_MESSAGES_TO_CONSIDER_LAST = 20
 
 SEGMENT_SIZE_IN_BYTES = 100000
 
@@ -31,12 +33,10 @@ def file_extension(path):
 
 class Message:
     @staticmethod
-    def persist():
-        file = SecureFile(App.get_messages_database_path())
-        file.clear()
-        for message in Message.messages:
-            if message.complete:
-                file.append_line(Message.to_json(message))
+    def persist(message):
+        if message.complete:
+            file = SecureFile(App.get_messages_database_path())
+            file.append_line(Message.to_json(message))
 
     @staticmethod
     def fetch_next_segment():
@@ -86,6 +86,10 @@ class Message:
                     if len(line) < 3:
                         continue
                     message = Message.from_json(line)
+                    for m in Message.messages:
+                        if message.id == m.id:
+                            Message.messages.remove(m)
+                            break
                     Message.messages.append(message)
         except FileNotFoundError:
             pass
@@ -127,7 +131,7 @@ class Message:
         message_entity.file_size = 0
         Message.messages.append(message_entity)
         message_entity.send_packet()
-        Message.persist()
+        Message.persist(message_entity)
         
     @staticmethod
     def send_file(id, username, file_name, file_path):
@@ -152,7 +156,7 @@ class Message:
         message_entity.file_size = size
         Message.messages.append(message_entity)
         message_entity.send_packet()
-        Message.persist()
+        Message.persist(message_entity)
 
     def send_packet(self):
         message_in_base64 = base64.b64encode(self.content.encode()).decode("utf-8")
@@ -173,6 +177,11 @@ class Message:
         content = json.loads(json_content)
 
         id = content["id"]
+        
+        existing_message = Message.get_by_id(id)
+        if existing_message != None:
+            return
+        
         created_at = content["createdAt"]
         message_in_base64 = content["content"]
         message = base64.b64decode(message_in_base64).decode("utf-8")
@@ -195,7 +204,7 @@ class Message:
         message_entity.file_name = content["fileName"]
         if message_entity.type == "text:small":
             message_entity.delivered_at = current_time_in_milliseconds()
-            message_entity.read_at = current_time_in_milliseconds()
+            message_entity.read_at = None
         else:
             message_entity.delivered_at = None
             message_entity.read_at = None
@@ -207,13 +216,27 @@ class Message:
                 f.write(b"\0")
 
         Message.messages.append(message_entity)
-        Message.persist()
+        
+        Notifier.notify(friend.username, message[:100])
+        
+        Message.persist(message_entity)
 
         if message_entity.type == "text:small":
             SecurePacket.send(friend.username, "MESSAGE_DELIVERED" +
                           " " + id + " " + current_time_in_milliseconds())
-            SecurePacket.send(friend.username, "MESSAGE_READ" +
-                          " " + id + " " + current_time_in_milliseconds())
+            # SecurePacket.send(friend.username, "MESSAGE_READ" +
+            #               " " + id + " " + current_time_in_milliseconds())
+            
+    @staticmethod
+    def set_read(ids):
+        for id in ids:
+            message = Message.get_by_id(id)
+            if message == None:
+                continue
+            message.read_at = current_time_in_milliseconds()
+            Message.persist(message)
+            SecurePacket.send(message.sender_username, "MESSAGE_READ" +
+                    " " + id + " " + current_time_in_milliseconds())
         
     @staticmethod
     def parse_segments_requested(friend, content):
@@ -257,6 +280,8 @@ class Message:
         content = json.loads(json_content)
 
         message = Message.get_by_id(content["id"])
+        if message == None:
+            return
         message.fetched_segments.append(int(content["index"]))
 
         with open(App.get_media_path() + sanitize_filename(content["id"]) + "." + sanitize_filename(file_extension(message.file_name)), "r+b") as f:
@@ -268,12 +293,12 @@ class Message:
             message.segment_amount = 0
             message.segments = []
             message.delivered_at = current_time_in_milliseconds()
-            message.read_at = current_time_in_milliseconds()
-            Message.persist()
+            message.read_at = None
+            Message.persist(message)
             SecurePacket.send(friend.username, "MESSAGE_DELIVERED" +
                           " " + message.id + " " + current_time_in_milliseconds())
-            SecurePacket.send(friend.username, "MESSAGE_READ" +
-                          " " + message.id + " " + current_time_in_milliseconds())
+            # SecurePacket.send(friend.username, "MESSAGE_READ" +
+            #               " " + message.id + " " + current_time_in_milliseconds())
 
     @staticmethod
     def parse_message_delivered(friend, content):
@@ -281,7 +306,7 @@ class Message:
         delivered_at = content.split(" ")[2]
         message = Message.get_by_id(id)
         message.delivered_at = delivered_at
-        Message.persist()
+        Message.persist(message)
         print(friend.username + ": Message delivered")
 
     @staticmethod
@@ -290,7 +315,7 @@ class Message:
         read_at = content.split(" ")[2]
         message = Message.get_by_id(id)
         message.read_at = read_at
-        Message.persist()
+        Message.persist(message)
         print(friend.username + ": Message read")
 
     @staticmethod
@@ -334,6 +359,28 @@ class Message:
     @staticmethod
     def get_all_messages():
         return Message.messages
+
+    @staticmethod
+    def get_last_messages_from_username(username, before = None):
+        messages = []
+        for message in Message.messages:
+            if message.username == username or message.sender_username == username or message.receiver_username == username:
+                messages.append(message)
+        messages.sort(key=lambda x: x.created_at)
+        skipped_messages = []
+        for message in messages:
+            if before != None and message.id == before:
+                break
+            skipped_messages.append(message)
+        return skipped_messages[(-1 * AMOUNT_OF_MESSAGES_TO_CONSIDER_LAST):]
+    
+    @staticmethod
+    def get_unread_messages_count():
+        count = 0
+        for message in Message.messages:
+            if message.receiver_username == App.get_username() and message.read_at == None:
+                count += 1
+        return count
     
     @staticmethod
     def get_all_messages_from_username(username):

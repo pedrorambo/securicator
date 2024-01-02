@@ -65,13 +65,17 @@ def get_friends(query, body):
 
 def get_status(query, body):
     return {
-        "relayConnected": Relay.connected
+        "relayConnected": Relay.segment.connected,
+        "unreadMessages": Message.get_unread_messages_count()
     }
 
 def get_messages(query, body):
     username = query["username"][0]
+    before = query.get("before")
+    if before != None:
+        before = before[0]
     parsed = []
-    for message in Message.get_all_messages_from_username(username):
+    for message in Message.get_last_messages_from_username(username, before):
         parsed.append({
             "id": message.id,
             "createdAt": message.created_at,
@@ -99,11 +103,15 @@ def send_message(query, body):
             Message.send_file(id, friend.username, body["filename"], file_path)
         else:
             Message.send(friend.username, body["message"])
-
+            
 def add_friend(query, body):
     friend = Friend.get_friend_by_username(body["username"])
     if friend == None:
         HandshakeSession.start_new_session(my_username, body["username"])
+
+def set_reads(query, body):
+    ids = body["ids"]
+    Message.set_read(ids)
 
 api = RestApi()
 api.get("/friends", get_friends)
@@ -111,6 +119,7 @@ api.get("/messages", get_messages)
 api.get("/status", get_status)
 api.post("/messages", send_message)
 api.post("/add-friend", add_friend)
+api.post("/reads", set_reads)
 api.serve_files("/media", App.get_media_path())
 try:
     api_thread = threading.Thread(target=api.listen, args=("127.0.0.1", 8000))
