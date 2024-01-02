@@ -5,6 +5,7 @@ import "./index.css";
 import Friend from "./Friend";
 import Chat from "./Chat";
 import AddFriend from "./AddFriend";
+import Settings from "./Settings";
 
 export function Router() {
   return (
@@ -12,6 +13,7 @@ export function Router() {
       <Routes>
         <Route path="/" element={<App />}>
           <Route path="add-friend" Component={AddFriend} />
+          <Route path="settings" Component={Settings} />
           <Route path="friends/:username" element={<Friend />}>
             <Route path="chat" Component={Chat} />
           </Route>
