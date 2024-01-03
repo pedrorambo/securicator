@@ -27,6 +27,15 @@ function formatBytes(bytes, decimals = 2) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
+const isValidUrl = (urlString) => {
+  try {
+    const url = new URL(urlString);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (e) {
+    return false;
+  }
+};
+
 async function getBase64(file) {
   return new Promise((resolve, reject) => {
     var reader = new FileReader();
@@ -133,6 +142,7 @@ function Chat() {
                 : m.deliveredAt
                 ? "delivered"
                 : "registered";
+              const isURL = isValidUrl(m.content);
               const direction =
                 m.senderUsername === username ? "received" : "sent";
               const fileExtension = m.fileName
@@ -147,6 +157,7 @@ function Chat() {
                 direction,
                 fileExtension,
                 showPreviewImage,
+                isURL,
               };
             });
             const newValues = [...old];
@@ -293,6 +304,7 @@ function Chat() {
                 : "registered";
               const direction =
                 m.senderUsername === username ? "received" : "sent";
+              const isURL = isValidUrl(m.content);
               const fileExtension = m.fileName
                 ? m.fileName.split(".").pop()
                 : null;
@@ -305,6 +317,7 @@ function Chat() {
                 direction,
                 fileExtension,
                 showPreviewImage,
+                isURL,
               };
             });
             const newValues = [...old];
@@ -382,13 +395,27 @@ function Chat() {
                   </p>
                 </a>
               ) : (
-                <p
-                  className={`message-content ${
-                    m.deliveredAt ? "" : "message-muted"
-                  }`}
-                >
-                  {m.content}
-                </p>
+                <>
+                  {m.isURL ? (
+                    <a target="_blank" href={m.content} rel="noreferrer">
+                      <p
+                        className={`message-content ${
+                          m.deliveredAt ? "" : "message-muted"
+                        }`}
+                      >
+                        {m.content}
+                      </p>
+                    </a>
+                  ) : (
+                    <p
+                      className={`message-content ${
+                        m.deliveredAt ? "" : "message-muted"
+                      }`}
+                    >
+                      {m.content}
+                    </p>
+                  )}
+                </>
               )}
               <p className="message-timestamp">
                 {formatMessageDate(m.createdAt)}
