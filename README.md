@@ -350,6 +350,49 @@ UDP looks like a good option, but the server network could easily be congested. 
 
 [](https://www.bittorrent.org/beps/bep_0029.html)
 
+[](https://www.evanjones.ca/read-write-buffer-size.html)
+
+[](https://support.ookla.com/hc/en-us/articles/360017436132-Optimizing-Server-Performance)
+
+[](https://en.wikipedia.org/wiki/Transmission_Control_Protocol)
+
+[](https://discord.com/blog/why-discord-is-switching-from-go-to-rust)
+
 # Vulnerabilities
 
 Guess the distance based on the latency in multiple servers. This can be resolved by applyng a random delay in the client for each request.
+
+# Future: Add support for multiple relays
+
+- One client should always be connected to multiple relay servers
+- There should be a confirmation to establish a single client-to-client connection
+- There should be a routing algorithm to connect one client to the relay server that has the other client connected to
+
+TODO: Describe better
+
+# TCP details
+
+TODO: Describe better
+
+- send() and recv() does not necessarely send or receive the complete buffer size. This caused me a lot of headache (when parsing the first 500 bytes - the username)
+- TCP 200ms delay (and the NODELAY flag)
+- The sendall method
+
+Challanges when implementing a high throughput relay server:
+
+- OS max open files
+- Python thread limit
+- Memory usage (the size we consider one SecurePacket)
+- CPU usage (the copy() function in Golang)
+
+With 2vCPU, 1GB RAM 4Gbps LAN I could reach 5047 concurrent connections each sending ~3500 bytes each 200ms, before running out of RAM, and both cores at ~80% usage on the htop command.
+
+Keeping a send buffer in the application vs in the OS.
+
+## Relay security (future)
+
+Currently, a node A could open the (max connections per IP) \* (available IPs) connections at (max speed per IP)Mbps, and make all of them send data to the node B, overloading the receiver node. To fix this, there should be a trust agreement associating both the sender, and the receiver, and a very limited throughput for untrusted users (to allow the handshake process).
+
+## Sugestion for future
+
+Use one connection exclusivelly to control (sending, and receiving messages), and another one exclusivelly to transfer media (files, and images).
