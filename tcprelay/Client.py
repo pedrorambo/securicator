@@ -121,7 +121,7 @@ class Client:
                         buffer = buffer[length:]
                         
                     if length != None and len(inner_content) >= length:
-                        username = inner_content[0:500]
+                        username = inner_content[0:400]
                         #print("Message to " + username.decode("utf-8").strip() + " of size " + str(len(total)))
                         clients = Client.get_by_username(username.decode("utf-8").strip())
                         for destination_client in clients:
