@@ -32,5 +32,12 @@ class AESCipher(object):
         encrypted_text = b64decode(encrypted_text)
         iv = encrypted_text[:self.block_size]
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        plain_text = cipher.decrypt(encrypted_text[self.block_size:]).decode("utf-8")
+        try:
+            plain_text = cipher.decrypt(encrypted_text[self.block_size:]).decode("utf-8")
+        except:
+            print("Could not decrypt")
+            print("----CONTENT----")
+            print(encrypted_text)
+            print("-----END-------")
+            return ""
         return self.__unpad(plain_text)

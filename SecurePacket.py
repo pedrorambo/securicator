@@ -5,6 +5,7 @@ from AESCipher import AESCipher
 from Friend import Friend
 from RSA import RSA
 from Relay import Relay
+import traceback
 
 
 def random_symmetric_key():
@@ -43,6 +44,7 @@ class SecurePacket:
                 encrypted_content)).decode("utf-8")
             return (friend, content)
         except Exception as e:
-            print(e)
+            print("Secure packet exception:",str(e))
+            print(traceback.format_exc())
             return None
     

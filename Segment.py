@@ -8,6 +8,9 @@ import time
 def current_time_in_milliseconds():
     return round(time.time() * 1000)
 
+def current_timestamp_bytes():
+    return round(time.time() * 1000000).to_bytes(8, byteorder="big")
+
 CONNECTION_EXPIRE_TIMEOUT_IN_MILLISECONDS = 15000
 MAX_SEGMENT_SIZE_IN_BYTES = 500000
 
@@ -69,7 +72,7 @@ class Segment:
                         self.close()
                     self.connect()
                 except Exception as e:
-                    print(str(e))
+                    print("Segmen keep connection exception:", str(e))
                     pass
             time.sleep(1)
         
@@ -83,14 +86,14 @@ class Segment:
                     magic = b'\x00\x00\x00\x01'
                     if len(content) > MAX_SEGMENT_SIZE_IN_BYTES:
                         raise Exception("Segment too large")
-                    null_padded = username.encode("utf-8") +  (b' ' * (500 - len(username.encode("utf-8"))))
-                    inner_content = null_padded + content
-                    length = len(inner_content)
-                    b  = magic + length.to_bytes(4, byteorder="big") + inner_content
+                    null_padded = username.encode("utf-8") +  (b' ' * (492 - len(username.encode("utf-8"))))
+                    inner_content = null_padded + current_timestamp_bytes() + content
+                    length = len(inner_content) + 1
+                    b  = magic + length.to_bytes(4, byteorder="big") + inner_content + b'\xFF'
                     self.s.sendall(b)
-                except:
+                except Exception as e:
                     self.connected = False
-                    print("Error in send packet")
+                    print("Error in send packet", str(e))
                     pass
         
     def send(self, username, content):
@@ -141,7 +144,7 @@ class Segment:
                                 continue
                             if magic != b'\x00\x00\x00\x01':
                                 buffer = buffer[4:]
-                                print("Incorrect magic number")
+                                # print("Incorrect magic number")
                                 continue
                             else:
                                 should_continue = True
@@ -164,7 +167,13 @@ class Segment:
                         buffer = buffer[length:]
                         
                     if length != None and len(inner_content) >= length:
-                        self.callback(inner_content[500:])
+                        inner_content_with_magic_end = inner_content[500:]
+                        last_byte = inner_content_with_magic_end[-1:]
+                        if last_byte == b'\xFF':
+                            inner_content_without_magic_end = inner_content_with_magic_end[:-1]
+                            self.callback(inner_content_without_magic_end)
+                        else:
+                            print("Corrupted packet received")
                         length = None
                         total = b''
                         inner_content = b''
@@ -184,5 +193,5 @@ class Segment:
             self.s.close()
             self.connected = False
         except Exception as e:
-            print(str(e))
+            print("Close socket exception: ", str(e))
             pass
