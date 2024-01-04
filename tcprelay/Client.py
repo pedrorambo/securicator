@@ -86,7 +86,7 @@ class Client:
                             print("Not enough data in packet")
                             continue
                         should_continue = False
-                        while len(buffer) >= 4:
+                        while len(buffer) >= 8:
                             magic = buffer[0:4]
                             if magic == b'\x00\x00\x00\x00':
                                 buffer = buffer[4:]
@@ -103,6 +103,9 @@ class Client:
                         if not should_continue:
                             continue
                         length = int.from_bytes(buffer[4:8], byteorder="big")
+                        if length == 0:
+                            buffer = buffer[8:]
+                            continue
                         if length > MAX_SEGMENT_SIZE_IN_BYTES:
                             print("Received segment too large")
                             buffer = buffer[4:]
@@ -128,6 +131,11 @@ class Client:
                         inner_content = b''
                 except socket.timeout:
                     pass
+                except Exception as e:
+                    if not ("Broken pipe" in str(e)):
+                        print("5: ", str(e))
+                    self.close()
+                    break
         finally:
             self.close()
             print("Listener for " + self.username + " ended")

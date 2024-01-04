@@ -26,18 +26,16 @@ thread = threading.Thread(target=metrics)
 thread.start()
 
 while True:
+    (connection, addr) = s.accept()
+    connection.settimeout(5)
+    ip, _ = addr
     try:
-        (connection, addr) = s.accept()
-        connection.settimeout(5)
-        ip, _ = addr
         can_connect = RateLimiter.can_connect(ip)
-        if not can_connect:
-            print("Max sockets per IP exceeded")
-            connection.close()
-            continue
         
-        received = connection.recv(500)
-        username = received.decode("utf-8").strip()
+        initial = connection.recv(500)
+        while len(initial) < 500:
+            initial += connection.recv(500 - len(initial))
+        username = initial.decode("utf-8").strip()
         
         client = Client(username, connection, ip)
         
@@ -52,5 +50,6 @@ while True:
         
         Client.clients.append(client)
     except Exception as e:
+        connection.close()
         print("2", str(e))
         pass
