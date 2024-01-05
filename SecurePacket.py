@@ -3,7 +3,6 @@ import random
 import string
 from AESCipher import AESCipher
 from Friend import Friend
-from RSA import RSA
 from Relay import Relay
 import traceback
 
@@ -19,14 +18,15 @@ class SecurePacket:
     def send(username, content):
         friend = Friend.get_friend_by_username(username)
         symmetric_key = random_symmetric_key()
-        encrypted_symmetric_key = RSA.encrypt_with_public_key(
-            symmetric_key, friend.its_public_key)
+        encrypted_symmetric_key = friend.its_asymmetric_encryption.encrypt(symmetric_key) 
         aes = AESCipher(symmetric_key)
         encrypted_message = aes.encrypt(
             base64.b64encode(content.encode()).decode("utf-8"))
         content = friend.its_public_key + " " + \
             encrypted_symmetric_key + " " + encrypted_message
-        Relay.send(username, "SECURE_PACKET " + content)
+        sha = friend.my_asymmetric_encryption.sign(content)
+        signature = str(sha.hex())
+        Relay.send(username, "SECURE_PACKET " + content + " " + signature)
 
     @staticmethod
     def parse_received(raw):
@@ -34,11 +34,13 @@ class SecurePacket:
             my_public_key = raw.split(" ")[0]
             encrypted_symmetric_key = raw.split(" ")[1]
             encrypted_content = raw.split(" ")[2]
+            signature = raw.split(" ")[3]
+            sha = bytes.fromhex(signature)
             friend = Friend.get_friend_by_my_public_key(my_public_key)
             if not friend:
                 return None
-            symmetric_key = RSA.decrypt_with_private_key(
-                encrypted_symmetric_key, friend.my_private_key)
+            friend.its_asymmetric_encryption.verify_signature(my_public_key + " " + encrypted_symmetric_key + " " + encrypted_content, sha)
+            symmetric_key = friend.my_asymmetric_encryption.decrypt(encrypted_symmetric_key)
             aes = AESCipher(symmetric_key)
             content = base64.b64decode(aes.decrypt(
                 encrypted_content)).decode("utf-8")

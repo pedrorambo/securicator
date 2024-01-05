@@ -1,5 +1,6 @@
 import json
 from App import App
+from RSA import RSA
 
 from SecureFile import SecureFile
 
@@ -29,6 +30,8 @@ class Friend:
                     friend.my_private_key = data["my_private_key"]
                     friend.its_public_key = data["its_public_key"]
                     friend.last_heartbeat = None
+                    friend.my_asymmetric_encryption = RSA(friend.my_public_key, friend.my_private_key)
+                    friend.its_asymmetric_encryption = RSA(friend.its_public_key)
                     Friend.friends.append(friend)
         except FileNotFoundError:
             pass
@@ -40,6 +43,8 @@ class Friend:
         friend.my_public_key = my_public_key
         friend.my_private_key = my_private_key
         friend.its_public_key = its_public_key
+        friend.my_asymmetric_encryption = RSA(friend.my_public_key, friend.my_private_key)
+        friend.its_asymmetric_encryption = RSA(friend.its_public_key)
         friend.last_heartbeat = None
         Friend.friends.append(friend)
         Friend.persist()
