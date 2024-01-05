@@ -13,9 +13,6 @@ class Receiver:
         if (message.startswith("START_HANDSHAKE_SESSION")):
             HandshakeSession.receive_handshake_request(
                 message.split(" ")[1])
-        if (message.startswith("MESSAGE ")):
-            body = " ".join(message.split(" ")[1:])
-            Message.parse_received_message(body)
         if (message.startswith("SECURE_PACKET ")):
             body = " ".join(message.split(" ")[1:])
             response = SecurePacket.parse_received(body)
