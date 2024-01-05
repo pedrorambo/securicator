@@ -2,6 +2,21 @@ This is a PoC project of a distributed end-to-end encrypted messaging app. Since
 
 ![Three terminals: Node A exchanging messages with Node B, the relay server forwarding the messages, and Node B exchanging messages with Node A](assets/hero.gif)
 
+# Why are the processes documented in detail in this document?
+
+As important as the client implementation in Python is the documentation of the architecture. Currently, there is only a Python + web application meant to run in a computer or laptop, but this process can be ported to any other native system (iOS, Android, MacOS, Linux, Windows, etc.), as long as all the necessary features are implemented, the clients can use the same relay server, and interchange messages.
+
+Also, this being a PoC project, I documented most of the dscoveries I had while researching encryption, persistence, relay, TCP, handshaking, fragmentation, etc.
+
+# How to actually using this application
+
+TODO: Describe
+
+- I actually used when testing it
+- There must be a relay server
+- Both nodes should be connected when exchanging messages
+- You could leave the application running in the background
+
 # List of functionalities and characteristics of the app
 
 - Securely handshaking (adding) new contacts
@@ -358,9 +373,11 @@ UDP looks like a good option, but the server network could easily be congested. 
 
 [](https://discord.com/blog/why-discord-is-switching-from-go-to-rust)
 
-# Vulnerabilities
+[libutp - The uTorrent Transport Protocol library](https://github.com/bittorrent/libutp)
 
-Guess the distance based on the latency in multiple servers. This can be resolved by applyng a random delay in the client for each request.
+[](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts)
+
+[](https://blog.whatsapp.com/1-million-is-so-2011)
 
 # Future: Add support for multiple relays
 
@@ -369,6 +386,21 @@ Guess the distance based on the latency in multiple servers. This can be resolve
 - There should be a routing algorithm to connect one client to the relay server that has the other client connected to
 
 TODO: Describe better
+
+# Switching from UDP to TCP
+
+TODO: Describe
+
+- The initial implementation
+- UDP limitations
+- The control overhead
+- MTU of 1500
+- Speed, retransmission, and congestion
+- How uTorrent does it, and the uTP
+- UDP is not a big trouble with P2P, but for server QoS it is
+- TCP (we were not using P2P, so there is no big reason to use UDP)
+- Streaming (and not packet) challange
+- Relaying
 
 # TCP details
 
@@ -389,10 +421,170 @@ With 2vCPU, 1GB RAM 4Gbps LAN I could reach 5047 concurrent connections each sen
 
 Keeping a send buffer in the application vs in the OS.
 
-## Relay security (future)
+# Security checklist
 
-Currently, a node A could open the (max connections per IP) \* (available IPs) connections at (max speed per IP)Mbps, and make all of them send data to the node B, overloading the receiver node. To fix this, there should be a trust agreement associating both the sender, and the receiver, and a very limited throughput for untrusted users (to allow the handshake process).
+## File name, and paths
 
-## Sugestion for future
+Currently, all files are saved as the ID of the message (which should be checked if is a valid uuidv4), with the original extension (that is filtered using a whitelist).
 
-Use one connection exclusivelly to control (sending, and receiving messages), and another one exclusivelly to transfer media (files, and images).
+## Access control
+
+The message exchange can only happen between two trusted users, and the username is set by the receiver, and not the sender.
+
+Also, if a client sends a message with an uuid that already exists, this message gets ignores.
+
+The only broken access present is the application is when requesting a file segment, where the application doesn't check if the message was sent to the client requesting the file.
+
+## Handshake
+
+For the handshake, a pre-shared key is needed. This key is used only to encrypt and decrypt the public key of the node starting the communication. After that, there's no security concerns if someone discovers this pre-shared key, since all the following content is encrypted with the private keys, which can't be derived from the public key, and the pre-shared key.
+
+## Encryption
+
+All messages exchanged between two nodes after the handshake are encrypted using symmetric, and asymetric encryption.
+
+## Signing
+
+The first problem is resolved, and we can encrypt the messages.
+
+In the worst case scenario, where the first handshake packet is captured and saved, and later the attacker discovers the pre-shared key, and then the Node A's public key, the attacker could not read messages, but can send messages to Node A. To fix this, we can sign each message, and then verify the signature in the receiving side.
+
+The method used for signing was [PCKS#1 v1.5 (RSA)](https://pycryptodome.readthedocs.io/en/latest/src/signature/pkcs1_v1_5.html). Whith this methdo implemented, a interceptor that gets the pre-shared key after the handshake cannot read, neither send messages.
+
+## File encryption
+
+The database, and received files are not encrypted.
+
+## API, and web interface authentication
+
+There is no authentication in the API, and web interface, but they are listening only in 127.0.0.1 (localhost). An authenticaion is still necessary, since there could be multiple users in the localhost.
+
+## Public (plain-text) information
+
+By public information, I mean plain-text information present when:
+
+- There is a node using the same username as other node (receiving the same packets as the original node)
+- Intercepting network requests
+- The relay server is malicious, sniffing every forwarded packet
+
+The information that can be gathered, or derived using the previous methods are:
+
+- The period in which a node is connected
+- The sender public key
+- The sender username
+- The receiver username
+- The aproximate length, and rate of the data transfer (which can be used to detect patterns in the communication between two nodes)
+- When a handshake happens (request, and confirmation)
+
+The data (not direct information) that can be gathered:
+
+- All the encrypted content transfered between the nodes
+
+## Data privacy
+
+With the current implementation, all nodes that announced itself with the same username will receive the same messages. If two nodes have the same username (one being the actual user, and other being an attacker), the messages (with encrypted content) going to the actual user will also be delivered to the attacker. This can be mitigated by authenticating in the relay server the forwarding between two ndoes. The only traffic that would not be authenticated would be the packets associated with the handshake process, which must be sent to users which we don't already trust.
+
+## DDoS
+
+Currently, a node A could open (max connections per IP) \* (available IPs) connections to transfer (max transfer speed per IP), and direct all of the data to node B, overloading the receiver node. The previously mentioned forwarding authentication could also fix this issue.
+
+## DoS
+
+Since there is a `transfer speed limit per IP`, and `maximum number of connections per IP`, a (not distributed/one single IP) Denial of Service is not probable to happen. If these two parameters are configured correctly, a single IP would not be able to overwhelm the relay server, or the destination node by just generating traffic.
+
+If using more sophisticated methods, a DoS could probably be achieved, for example by:
+
+- Sending malicious badly encrypted handshake content (the destination must be waiting for a handshake). In this case, there will be a resource cost associated with trying to decrypt the content that is not decrypable.
+- Using some other (not found yet) breach that does heavy computation or waits, and accept unauthenticated packets, which can be used to scale resource cost associated with just receiving some bytes.
+
+## Availability, and latency patterns
+
+By keeping a history of the availability (when traffic is detected with an active node), this data can be used to associate with power, or network outages to narrow the possible locations of a user. Due to the architecture, the application is meant to always be running when the machine is operating (so nodes can be notified about new messages, and deliver messages to other connected nodes).
+
+By analyzing the latency between nodes in multiple locations, and the destination node (passing through the relay server), the location could be estimated with small precision. This can be mitigated by adding a random delay when sending, forwarding, and receiving a message.
+
+## Time-based attacks
+
+### Algorithm time-based attacks
+
+I haven't analyzed the algorithms utilized for encryption, decryption, and signing for time-based attacks, but feel free to do that investigation.
+
+# The necessity of a fixed size packet, and the packet size limitation for scalability
+
+The simplest possible functional relay server would redirect byte streams from one TCP connection, to the other. In this case, the RAM usage in the relay server would not be a big concearn, because we can read and write buffers as low as 1 byte each time.
+
+While being simple, if two nodes send messages at the same time to other node, this relay method won't work, because in a TCP stream, we cannot interleave n bytes from stream A, and stream B. To understand this limtation, it must be noted that this application uses only one TCP connection/socket with only one relay server. To support multiple nodes sending at the same time, there must be a lock mechanism to allow only data from Node A to be sent to Node B until the stream ends. The problem with that is that the stream would be blocked for other messages. This is not a big problem when dealing with a few small packets, because the transmission would be blocked for ~100ms, but in the real life with congestion, latencies, and retransmissions, this transmission could easily be blocked for 5s, scaling with the number of friends one has. Moreover, a malicious node could send bytes slowly on purpose, locking one's stream for a long time, causing a DoS.
+
+The solution implemented was a buffering on the relay server. The server would wait for a complete packet of max size `n` from the origin (which can take, for example, 10 seconds to send it), and only when the server has the complete packet, it will relay the content to the destination. This way we lock a transmission for as little time as possible. The main drawback of using this method is the high amount of memory used per client in the relay server. This way, the available RAM in the server limits the amount of simultaneous connected clients. I tested 100KB buffers, which would limit a server with 100GB of RAM to handle at most 800000 connections (with a 20% margin). If we lower the buffer size to support more connected clients, the file transfer gets slower. To keep the buffer small, and support faster file transfer, one possibility is to use two TCP connections.
+
+## Two TCP connections
+
+It should be noted that the support for two TCP connections is not implemented in this application, and is listed as a suggestion.
+
+To better support more clients, and decrease the latency for small messages, and user feedback, each client could always have two connections to one relay server: one for control and small text messages (with a low buffer size, for example 10KB), and another connection exclusive for file transfer (with a larger buffer size, for example, 500KB).
+
+When sending a small text message, updating the user status, or announcing that a file was sent, the latency will be lower than when sending files. Also, if the transfer server is overloaded, there will be no impact in the other actions.
+
+## On-demmand buffers
+
+Another solution is to create these buffers on-demmand, and expand them when reading more data. In this case, it's necessary to have a timeout for reading (keeping the buffer in use) the content. Also, this packet must be kept until it is sent to the destination.
+
+In a public WhatsaApp partial benchmark, there was a RAM ratio of ~15KB per socket.
+
+# Keeping a connection always active
+
+It's not that easy to keep a TCP connection always active, when the user change networks, is unstable, or suspend the OS.
+
+TODO: Describe better.
+
+# Feature idea (and its challanges): Group chats
+
+There is no `User -> Server -> All Users`. Rather, all the users must have as friends all the other users, and there should be the possibility for a node to forward a message received from a user in a group to its friends.
+
+Probably, the user must have at least another friend in the group, from which the messages will be forwarded. In that case, there must be a note indicating that the friend forwarded that message as being sent from another user in the group, reducing the trust level.
+
+[](https://medium.com/@asierr/implementing-end-to-end-encryption-for-group-chats-f068577c53de#:~:text=Messages%20sent%20to%20the%20group,it%20to%20read%20the%20message.)
+
+[](https://security.stackexchange.com/questions/126768/which-protocols-exist-for-end-to-end-encrypted-group-chat)
+
+[](https://www.quora.com/How-does-group-messaging-work-with-end-to-end-encryption)
+
+[](https://en.wikipedia.org/wiki/Signal_%28software%29#Implementations)
+
+[](https://security.stackexchange.com/questions/119633/how-does-whatsapps-new-group-chat-protocol-work-and-what-security-properties-do/119656#119656)
+
+[IMPORTANT](https://www.whatsapp.com/security/WhatsApp-Security-Whitepaper.pdf)
+
+[](https://messaginglayersecurity.rocks/)
+
+[](https://serverfault.com/a/10919)
+
+Apparently, the group chat implementation would be a multiple one-to-one chat, in which each client have a key pair with each other user.
+
+Even having multiple one-to-one chat, the message forwarding between trusted users in the group would still be recommended, otherwise we would need the sender online to receive the message, making the message consistency in the group a mess. When a message is forwarded through a trusted user, this can be flagged in the message, while we don't receive the message from the original sender.
+
+# Persistence, and its scalability
+
+Currently, the persistence of friends and messages are implemented the simplest way: an append-only file, in which each line is a JSON string containing the data of a registry. When loading, all the lines are read, and loaded. Currently the persisted friends never gets updated, but the messeges does, and for that case, each update to one message is saved as a new line (a new registry) in the file. When loading, the last message replaces the previous messages that have the same ID.
+
+Received files are always associated with a message, and the actual files are all stored in a separate directory.
+
+This "simple" persistence allows a easier debugging, backup, migration, and editing, but it also have some problems considering scalability, the most notable being the necessity to load all the messages when starting the application. Messages are small, but if actually using this application to exchange messages, the amount of persisted messages could grow fast. To fix this, the persistence could be implemented in multiple files, prefering the latest file only, but falling back to older ones when an old message is requested.
+
+# (Re)synchronization
+
+It's easy for one client to not be in sync with the other, which can be:
+
+- Messages
+- Delivery, and read confirmations
+- Files
+
+The messages, and files are already resynchronized when an existing client reconnects, but the delivery, and read confirmations should be implemented.
+
+# IDEA Friend's friend
+
+Forwarding a friend handshake. In this case, we can ask B to handshake A with C, and we don't need to have a private key. This would be useful for groups. It should be saved that C was added through B.
+
+A --(is friend of)--> B
+B --(is friend of)--> C
+A --> B --> C
