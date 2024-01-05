@@ -12,7 +12,7 @@ def current_timestamp_bytes():
     return round(time.time() * 1000000).to_bytes(8, byteorder="big")
 
 CONNECTION_EXPIRE_TIMEOUT_IN_MILLISECONDS = 15000
-MAX_SEGMENT_SIZE_IN_BYTES = 500000
+MAX_SEGMENT_SIZE_IN_BYTES = 101000
 
 class Segment:
     def __init__(self, username, callback, server_ip, server_port):
@@ -72,7 +72,7 @@ class Segment:
                         self.close()
                     self.connect()
                 except Exception as e:
-                    print("Segmen keep connection exception:", str(e))
+                    print("Keep connection exception:", str(e))
                     pass
             time.sleep(1)
         
