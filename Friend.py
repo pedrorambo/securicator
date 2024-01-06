@@ -29,15 +29,26 @@ class Friend:
                     friend.my_public_key = data["my_public_key"]
                     friend.my_private_key = data["my_private_key"]
                     friend.its_public_key = data["its_public_key"]
+                    friend.bio = data["bio"]
                     friend.last_heartbeat = None
                     friend.my_asymmetric_encryption = RSA(friend.my_public_key, friend.my_private_key)
                     friend.its_asymmetric_encryption = RSA(friend.its_public_key)
                     Friend.friends.append(friend)
         except FileNotFoundError:
             pass
+        
+    @staticmethod
+    def set_bio(friend, bio):
+        if friend.bio == bio:
+            return
+        friend.bio = bio
+        Friend.persist()
 
     @staticmethod
     def add_friend(my_public_key, my_private_key, its_public_key, username):
+        existing = Friend.get_friend_by_username(username)
+        if existing != None:
+            raise Exception("Friend already exists")
         friend = Friend()
         friend.username = username
         friend.my_public_key = my_public_key
@@ -45,6 +56,7 @@ class Friend:
         friend.its_public_key = its_public_key
         friend.my_asymmetric_encryption = RSA(friend.my_public_key, friend.my_private_key)
         friend.its_asymmetric_encryption = RSA(friend.its_public_key)
+        friend.bio = ""
         friend.last_heartbeat = None
         Friend.friends.append(friend)
         Friend.persist()
@@ -78,7 +90,8 @@ class Friend:
                     "username": friend.username,
                     "my_public_key": friend.my_public_key,
                     "my_private_key": friend.my_private_key,
-                    "its_public_key": friend.its_public_key
+                    "its_public_key": friend.its_public_key,
+                    "bio": friend.bio
                 })
 
 Friend.friends = []

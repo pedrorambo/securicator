@@ -1,5 +1,6 @@
 import threading
 import time
+from App import App
 
 from Friend import Friend
 from SecurePacket import SecurePacket
@@ -13,7 +14,7 @@ class Heartbeat:
         while True:
             friends = Friend.get_all_friends()
             for friend in friends:
-                SecurePacket.send(friend.username, "HEARTBEAT " + current_time_in_milliseconds())
+                SecurePacket.send(friend.username, "HEARTBEAT " + current_time_in_milliseconds() + " " + App.get_bio())
             time.sleep(10)
 
     @staticmethod

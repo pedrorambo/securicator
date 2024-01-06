@@ -279,6 +279,17 @@ input {
   background-color: #2ecc71;
 }
 
+.handshake-allowed-indicator {
+  background-color: #3498db;
+  color: white;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .bottom-container {
   box-sizing: border-box;
   border-top: 1px solid #d1d1d1;
@@ -343,4 +354,16 @@ a.friend {
 .bottom-buttons {
   display: flex;
   gap: 1rem;
+}
+
+.checkbox-container {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.menu-indicators {
+  display: flex;
+  gap: 0.3rem;
+  flex-direction: column;
 }

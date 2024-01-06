@@ -21,8 +21,8 @@ def sanitize_filename(input):
 my_username = TerminalForm.text().required().default_from_environment_variable(
     "COM_USERNAME").prompt_message("Enter your username").read()
 
-pre_shared_key = TerminalForm.text().default_from_environment_variable(
-    "COM_PRESHARED_KEY").default("123456").prompt_message("Enter your pre-shared key").read()
+# pre_shared_key = TerminalForm.text().default_from_environment_variable(
+#     "COM_PRESHARED_KEY").default("123456").prompt_message("Enter your pre-shared key").read()
 
 relay_server_ip = TerminalForm.text().default_from_environment_variable(
     "COM_RELAY_IP").default("161.35.126.56").prompt_message("Enter the relay server IP address").read()
@@ -36,9 +36,9 @@ print("Setup finished. The app is ready.")
 print("Available commands: friend message messages save")
 
 App.set_username(my_username)
+App.load_settings()
 
 Relay.set_server(relay_server_ip, relay_server_port)
-HandshakeSession.my_pre_shared_key = pre_shared_key
 
 Friend.load()
 Message.load()
@@ -46,10 +46,8 @@ Message.load()
 fetch_segments_thread = threading.Thread(target=Message.fetch_segments)
 fetch_segments_thread.start()
 
-
 def handle_message(data):
     Receiver.parse_received_packet(data)
-
 
 Relay.setup(my_username, handle_message)
 Heartbeat.setup()
@@ -59,14 +57,23 @@ def get_friends(query, body):
     for friend in Friend.get_all_friends():
         parsed_friends.append({
             "username": friend.username,
-            "lastHeartbeat": friend.last_heartbeat
+            "lastHeartbeat": friend.last_heartbeat,
+            "bio": friend.bio,
         })
     return parsed_friends
 
 def get_status(query, body):
     return {
         "relayConnected": Relay.segment.connected,
-        "unreadMessages": Message.get_unread_messages_count()
+        "unreadMessages": Message.get_unread_messages_count(),
+        "handshakeAllowed": App.get_handshake_allowed()
+    }
+    
+def get_settings(query, body):
+    return {
+        "preSharedKey": App.get_preshared_key(),
+        "bio": App.get_bio(),
+        "handshakeAllowed": App.get_handshake_allowed()
     }
 
 def get_messages(query, body):
@@ -104,6 +111,12 @@ def send_message(query, body):
         else:
             Message.send(friend.username, body["message"])
             
+def set_settings(query, body):
+    App.set_bio(body["bio"])
+    App.set_secret(body["preSharedKey"])
+    App.set_allow_handshake(body["handshakeAllowed"])
+    App.persist_settings()
+            
 def add_friend(query, body):
     friend = Friend.get_friend_by_username(body["username"])
     if friend == None:
@@ -120,6 +133,8 @@ api.get("/status", get_status)
 api.post("/messages", send_message)
 api.post("/add-friend", add_friend)
 api.post("/reads", set_reads)
+api.get("/settings", get_settings)
+api.post("/settings", set_settings)
 api.serve_files("/media", App.get_media_path())
 try:
     api_thread = threading.Thread(target=api.listen, args=("127.0.0.1", 8000))

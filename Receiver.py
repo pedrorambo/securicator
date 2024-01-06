@@ -1,4 +1,5 @@
 from App import App
+from Friend import Friend
 from HandshakeSession import HandshakeSession
 from SecurePacket import SecurePacket
 from Message import Message
@@ -8,11 +9,13 @@ class Receiver:
     @staticmethod
     def parse_received_packet(message):
         if (message.startswith("CONFIRM_HANDSHAKE_SESSION")):
-            HandshakeSession.receive_handshake_confirmation(
-                " ".join(message.split(" ")[1:]))
+            if App.get_handshake_allowed() == True and len(App.get_preshared_key()) >= 8:
+                HandshakeSession.receive_handshake_confirmation(
+                    " ".join(message.split(" ")[1:]))
         if (message.startswith("START_HANDSHAKE_SESSION")):
-            HandshakeSession.receive_handshake_request(
-                message.split(" ")[1])
+            if App.get_handshake_allowed() == True and len(App.get_preshared_key()) >= 8:
+                HandshakeSession.receive_handshake_request(
+                    message.split(" ")[1])
         if (message.startswith("SECURE_PACKET ")):
             body = " ".join(message.split(" ")[1:])
             response = SecurePacket.parse_received(body)
@@ -31,6 +34,8 @@ class Receiver:
                     Message.parse_received_segment(friend, content)
                 if verb == "HEARTBEAT":
                     timestamp = int(content.split(" ")[1])
+                    bio = " ".join(content.split(" ")[2:])
+                    Friend.set_bio(friend, bio)
                     if friend.last_heartbeat == None or friend.last_heartbeat < (timestamp - 15000):
                         messages = Message.get_all_messages()
                         for message in messages:

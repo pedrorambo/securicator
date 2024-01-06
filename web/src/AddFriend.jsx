@@ -39,6 +39,7 @@ function AddFriend() {
         </div>
       ) : (
         <form
+          autoComplete="off"
           className="add-friend-form"
           onSubmit={(e) => {
             e.preventDefault();
@@ -48,6 +49,7 @@ function AddFriend() {
           <input
             type="text"
             placeholder="Username"
+            maxLength={32}
             autoFocus
             value={username}
             onChange={(e) => setUsername(e.target.value || "")}

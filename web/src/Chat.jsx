@@ -85,6 +85,38 @@ function Chat() {
   const [loadMore, setLoadMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [reachedTopEnd, setReachedTopEnd] = useState(false);
+  const [friends, setFriends] = useState([]);
+
+  useEffect(() => {
+    let requesting = false;
+    const doRequest = () => {
+      if (requesting) return;
+      requesting = true;
+      fetch("http://localhost:8000/friends")
+        .then((res) => res.json())
+        .then((data) => {
+          setFriends(
+            data.map((f) => {
+              if (!f.lastHeartbeat) return f;
+              const lastHeartbeat = new Date(f.lastHeartbeat);
+              const now = new Date();
+              const diff = now - lastHeartbeat;
+              const differenceInSeconds = Math.floor(diff / 1000);
+              return {
+                ...f,
+                differenceInSeconds,
+                active: diff < 15000,
+              };
+            })
+          );
+        })
+        .finally(() => (requesting = false));
+    };
+
+    doRequest();
+    const interval = setInterval(doRequest, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const onFocus = () => setOnFocus(true);
@@ -342,7 +374,15 @@ function Chat() {
     <div className="chat-container">
       <div className="chat-topbar">
         <h3>{username}</h3>
-        <p></p>
+        <p
+          title={friends?.find((f) => f.username === username)?.bio || ""}
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {friends?.find((f) => f.username === username)?.bio || ""}
+        </p>
       </div>
       <div
         className="chat-history"
@@ -436,6 +476,7 @@ function Chat() {
         }}
       >
         <form
+          autoComplete="off"
           className="chat-send-container"
           onSubmit={(e) => {
             e.preventDefault();

@@ -234,9 +234,20 @@ function App() {
               Settings
             </Link>
           </div>
-          <div
-            className={`relay-status ${status.relayConnected ? "online" : ""}`}
-          ></div>
+          <div className="menu-indicators">
+            <div
+              className={`relay-status ${
+                status.relayConnected ? "online" : ""
+              }`}
+              title={status.relayConnected ? "Connected" : "Disconnected"}
+            ></div>
+            {!!status.handshakeAllowed && (
+              <div
+                className={`handshake-allowed-indicator`}
+                title="Accepting handshake"
+              ></div>
+            )}
+          </div>
         </div>
       </div>
       <div className="chat-container">

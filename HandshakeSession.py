@@ -1,4 +1,5 @@
 import uuid
+from App import App
 from Friend import Friend
 from RSA import RSA
 from AESCipher import AESCipher
@@ -37,7 +38,7 @@ class HandshakeSession:
         session.my_public_key = public_key
         session.my_private_key = private_key
 
-        aes = AESCipher(HandshakeSession.my_pre_shared_key)
+        aes = AESCipher(App.get_preshared_key())
         message = session.id + " " + current_time_in_milliseconds() + " " + \
             session.my_public_key + " " + session.my_user_name
         encrypted_message = aes.encrypt(message)
@@ -48,7 +49,7 @@ class HandshakeSession:
 
     @staticmethod
     def receive_handshake_request(packet_content):
-        aes = AESCipher(HandshakeSession.my_pre_shared_key)
+        aes = AESCipher(App.get_preshared_key())
         content = aes.decrypt(packet_content)
         id = content.split(" ")[0]
         timestamp = content.split(" ")[1]
@@ -82,10 +83,11 @@ class HandshakeSession:
         body = "CONFIRM_HANDSHAKE_SESSION " + session.id + " " + \
             encrypted_symmetric_key + " " + encrypted_inner_content
         Relay.send(session.its_name, body)
-        print("Friend request accepted from " + session.its_name)
 
         Friend.add_friend(session.my_public_key, session.my_private_key,
                           session.its_public_key, session.its_name)
+
+        print("Friend request accepted from " + session.its_name)
 
         # Now, the session can be persisted, and it's not temporary anymore
 
@@ -104,9 +106,9 @@ class HandshakeSession:
                 timestamp = inner_content.split(" ")[0]
                 its_public_key = inner_content.split(" ")[1]
                 session.its_public_key = its_public_key
-                print(session.its_name + ": Accepted your friend request")
                 Friend.add_friend(session.my_public_key, session.my_private_key,
                                   session.its_public_key, session.its_name)
+                print(session.its_name + ": Accepted your friend request")
                 # Now, the session can be persisted, and it's not temporary anymore
 
 
