@@ -531,6 +531,24 @@ Another solution is to create these buffers on-demmand, and expand them when rea
 
 In a public WhatsaApp partial benchmark, there was a RAM ratio of ~15KB per socket.
 
+After implementing it, and benchmarking, a huge improvement in RAM usage was noted when dynamically allocating buffers.
+
+# Benchmarking the relay server
+
+In this repository, there's a project `benchmark`, which simulate clients exchanging simple messages. The mais purpose of this benchmark is to test the maximum number of simultaneous clients, and not bandwidth.
+
+When running, it connects new clients, each sending ~2500 bytes every 1 second. As a benchmark, it records the maximum amount of simultaneous connected users.
+
+A better benchmark would be to also receive the packets, and calculate the latency to deliver these packets.
+
+I recommend to monitor the system resources while running the benchmark using `htop` for CPU and RAM, and `iftop` for network throughput.
+
+## Early results
+
+Using the AWS `t3.medium` instance type, with 2vCPU, 4GB RAM, and no CPU credits left, it made 16158 simultaneous clients.
+
+Using the AWS `c7i.4xlarge` instance type, with 16vCPU, 32GB RAM, it made 28000 simultaneous clients. The RAM usage was only 700MB, the CPU usage was 20% in all 16 cores, and the network throughput reached 500Mbps receiving. The bottleneck in this scenario was the machine running the benchmark, which started getting `cannot assign requested address` errors, and I didn't investigate the problem. Considering the 20% CPU usage, and the connections, a linear projection can be made to estimate the capacity of 140000 active clients in this machine.
+
 # Keeping a connection always active
 
 It's not that easy to keep a TCP connection always active, when the user change networks, is unstable, or suspend the OS.
@@ -588,3 +606,12 @@ Forwarding a friend handshake. In this case, we can ask B to handshake A with C,
 A --(is friend of)--> B
 B --(is friend of)--> C
 A --> B --> C
+
+# Limiting the use of the relay server
+
+Initially, I implemented a throughput, and connection limit in the application, but the Linux network stack has more efficient ways of doing this:
+
+- iptables connlimit module to limit the amount of open TCP connections per IP
+- [tc module](https://lartc.org/howto/lartc.qdisc.classful.html) to implement traffic shaping limiting the throughput for each IP
+
+Also, this can be implemented in the router, or load balancer
