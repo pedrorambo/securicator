@@ -72,7 +72,7 @@ func ReadFullBuffer(buffer []byte, conn net.Conn) error {
 }
 
 func ReadUsername(conn net.Conn) (string, error) {
-	usernameBuffer := make([]byte, 500)
+	usernameBuffer := make([]byte, 136)
 	err := ReadFullBuffer(usernameBuffer, conn)
 	if err != nil {
 		return "", err
@@ -118,7 +118,7 @@ func ReadMagicNumber(conn net.Conn) (string, error) {
 }
 
 func ForwardReceivedPacket(content []byte, size uint32) {
-	recipientUsername := strings.TrimSpace(string(content[:400]))
+	recipientUsername := strings.TrimSpace(string(content[:128]))
 	to_send := []byte{0x00, 0x00, 0x00, 0x01}
 	var to_send_size = make([]byte, 4)
 	binary.BigEndian.PutUint32(to_send_size, uint32(size))
@@ -144,6 +144,17 @@ var activeConnections map[string]uint = make(map[string]uint)
 var speed map[string]uint32 = make(map[string]uint32)
 
 func main() {
+
+	// f, err := os.Create("out.prof")
+	// if err != nil {
+
+	// 	fmt.Println(err)
+	// 	return
+
+	// }
+	// pprof.StartCPUProfile(f)
+	// defer pprof.StopCPUProfile()
+
 	throughputMetrics := ThroughputMetrics{
 		throughput: make(map[string]uint32),
 	}
@@ -160,6 +171,9 @@ func main() {
 
 	fmt.Println("Server is listening on port 8080")
 
+	// end := time.Now().Add(time.Second * 10)
+
+	// for time.Now().UnixMilli() < end.UnixMilli() {
 	for {
 		// Accept incoming connections
 		conn, err := listener.Accept()
@@ -245,7 +259,6 @@ func handleClient(conn net.Conn, ip string, throughputMetrics ThroughputMetrics)
 	conn.SetReadDeadline(time.Now().Add(time.Second * 60))
 
 	for {
-
 		magicType, err := ReadMagicNumber(conn)
 		if err != nil {
 			fmt.Println("Error reading magic number", err)
