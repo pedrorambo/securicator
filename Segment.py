@@ -58,7 +58,7 @@ class Segment:
         self.s.connect((self.server_ip, self.server_port))
         # self.s.settimeout(None)
         self.connected = True
-        null_padded = self.username.encode('utf-8') +  (b' ' * (500 - len(self.username.encode("utf-8"))))
+        null_padded = self.username.encode('utf-8') +  (b' ' * (136 - len(self.username.encode("utf-8"))))
         self.s.sendall(null_padded)
         self.last_received = None
         print("Connected")
@@ -86,7 +86,7 @@ class Segment:
                     magic = b'\x00\x00\x00\x01'
                     if len(content) > MAX_SEGMENT_SIZE_IN_BYTES:
                         raise Exception("Segment too large")
-                    null_padded = username.encode("utf-8") +  (b' ' * (492 - len(username.encode("utf-8"))))
+                    null_padded = username.encode("utf-8") +  (b' ' * (128 - len(username.encode("utf-8"))))
                     inner_content = null_padded + current_timestamp_bytes() + content
                     length = len(inner_content) + 1
                     b  = magic + length.to_bytes(4, byteorder="big") + inner_content + b'\xFF'
@@ -97,9 +97,7 @@ class Segment:
                     pass
         
     def send(self, username, content):
-        priority = 1
-        if len(content) > 5000:
-            priority = 3
+        priority = len(content)
         self.queue.put((priority, username, content))
         
     def get_last_received(self):
@@ -167,7 +165,7 @@ class Segment:
                         buffer = buffer[length:]
                         
                     if length != None and len(inner_content) >= length:
-                        inner_content_with_magic_end = inner_content[500:]
+                        inner_content_with_magic_end = inner_content[136:]
                         last_byte = inner_content_with_magic_end[-1:]
                         if last_byte == b'\xFF':
                             inner_content_without_magic_end = inner_content_with_magic_end[:-1]

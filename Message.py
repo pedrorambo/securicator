@@ -11,6 +11,22 @@ from SecureFile import SecureFile
 from SecurePacket import SecurePacket
 import uuid
 
+def delete_none_fields(d):
+    """
+    Delete keys with the value ``None`` in a dictionary, recursively.
+
+    This alters the input so you may wish to ``copy`` the dict first.
+    """
+    # For Python 3, write `list(d.items())`; `d.items()` won’t work
+    # For Python 2, write `d.items()`; `d.iteritems()` won’t work
+    for key, value in list(d.items()):
+        if value is None:
+            del d[key]
+        elif isinstance(value, dict):
+            del_none(value)
+    return d  # For convenience
+
+
 MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST = 1
 MAX_CONCURRENT_DISTRIBUTED_SEGMENTS_TO_REQUEST = MAX_CONCURRENT_SEQUENTIAL_SEGMENTS_TO_REQUEST
 AMOUNT_OF_MESSAGES_TO_CONSIDER_LAST = 20
@@ -159,16 +175,15 @@ class Message:
         Message.persist(message_entity)
 
     def send_packet(self):
-        message_in_base64 = base64.b64encode(self.content.encode()).decode("utf-8")
-        json_content = json.dumps({
+        json_content = json.dumps(delete_none_fields({
             "id": self.id,
             "createdAt": self.created_at,
-            "content": message_in_base64,
-            "segmentAmount": self.segment_amount,
-            "type": self.type,
-            "fileSize": self.file_size,
+            "content": self.content,
+            "segmentAmount": self.segment_amount if self.segment_amount > 0 else None,
+            "type": None if self.type == "text:small" else self.type,
+            "fileSize": self.file_size if self.file_size > 0 else None,
             "fileName": self.file_name,
-        })
+        }))
         SecurePacket.send(self.username, "MESSAGE " + json_content)
 
     @staticmethod
@@ -183,8 +198,7 @@ class Message:
             return
         
         created_at = content["createdAt"]
-        message_in_base64 = content["content"]
-        message = base64.b64decode(message_in_base64).decode("utf-8")
+        message = content["content"]
 
         print(friend.username + ": " + message)
 
@@ -197,11 +211,11 @@ class Message:
         message_entity.created_at = created_at
         message_entity.segments = []
         message_entity.fetched_segments = []
-        message_entity.complete = content["segmentAmount"] == 0
-        message_entity.segment_amount = content["segmentAmount"]
-        message_entity.type = content["type"]
-        message_entity.file_size = content["fileSize"]
-        message_entity.file_name = content["fileName"]
+        message_entity.complete = False if content.get("segmentAmount") != None else True 
+        message_entity.segment_amount = content["segmentAmount"] if content.get("segmentAmount") else 0
+        message_entity.type = content["type"] if content.get("type") else "text:small"
+        message_entity.file_size = content["fileSize"] if content.get("fileSize") else 0
+        message_entity.file_name = content["fileName"] if content.get("fileName") else None
         if message_entity.type == "text:small":
             message_entity.delivered_at = current_time_in_milliseconds()
             message_entity.read_at = None
