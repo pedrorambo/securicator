@@ -8,7 +8,7 @@ import traceback
 
 
 def random_symmetric_key():
-    length = 100
+    length = 32 # As reported in the WhatsApp Security Whitepaper 2023, 32-byte keys are used by WhatsApp for AES-256 encryption
     char_set = string.ascii_uppercase + string.ascii_lowercase + string.digits
     return ''.join(random.sample(char_set*length, length))
 
