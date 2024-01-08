@@ -8,23 +8,57 @@ As important as the client implementation in Python is the documentation of the 
 
 Also, this being a PoC project, I documented most of the dscoveries I had while researching encryption, persistence, relay, TCP, handshaking, fragmentation, etc.
 
-# How to actually using this application
+# WhatsApp, Telegram, and Signal
 
-TODO: Describe
+It's important to clarify the difference between this implementation, and the most common chat apps, as all of them uses end-to-end encryption, and appear private and secure.
 
-- I actually used when testing it
-- There must be a relay server
-- Both nodes should be connected when exchanging messages
-- You could leave the application running in the background
+## Important note on censorship, and government involvement
+
+TODO: Inform
+
+## Centralization
+
+The primary difference is that the 3 main stream messaging apps all use a centralized server/authority for user authentication, and messaging.
+One advantage of these platforms is that just by knowing one's phone number, username, or being in the same group, I can start a new chat with that person, and that's important in today's context. The only problem is that there's a dependency in these servers.
+At first, if the servers goes down, there's no communication. That doesn't look like something that can happen very often, but there's other ways of blocking access to the servers, which have the same effect. [It's common for governments to block the access to apps such as Telegram](https://en.wikipedia.org/wiki/Government_censorship_of_Telegram).
+
+Also, if the ISP, cloud provider, or the company that owns the app decies to not work anymore, these messaging apps won't work.
+
+The proposal of this project is to not depend on a central authority, and that is achieved by focusing the authentication on the client, and using the servers just to make channels between two users. If a server goes down, or is blocked, the client application can automatically choose another healthy server, which can be run by any person, or organization.
+
+## Open implementaion
+
+This project describes, and shows the complete implementation of the protocols, allowing people to not need to trust on a company, rather to run, and analyze the source code of the running application. In other words, you can have access to everything related to the process, stored data, and the application you're using for communication.
+
+Everything critical runs locally, and can be analyzed by anyone with expertise to do that, and you don't depend on any company for serving the (closed source) app.
+
+The part that you can't control, analyze, or change is the relay servers, which is not responsible for authentication, nor encryption. Its only job is to forward messages from one client, to the other.
+
+## A note on privacy
+
+Even by using a strong and reliable end-to-end encryption, by using these apps (which don't share publicly the source code) you trust the company running the app, operating system, and app store. That's not a problem, that's just information to keep in mind.
+
+In a hypotetical case where the messaging app, app store, or operating system is forced to reveal your messages, that's easy to be achieved just by launching a software patch.
+
+# Using the application
+
+While testing, I actually used this application to communicate with a friend, but keep in mind that besides it being very experimental, you'll have to run a relay server, and have the necessary applications installed in the mechines tou want to communicate. Also, both nodes must be online for sending, or receiving messages. If you send a message to your offline friend, the message will arrive only when both of you are connected. The good part is that you can leave this application running always in the background, even if not opening the web interface.
 
 # List of functionalities and characteristics of the app
 
-- Securely handshaking (adding) new contacts
+## General
+
 - Sending messages between contacts
-- Receiving deliver and read confirmations
+- Deliver and read confirmations
+- Sending any files
 - Persisting the messages and contacts
-- Exchanging messages between users globally (via WAN) or locally connected (via LAN) using a relay server
-- Message delivery and seen notifications
+- Exchanging messages between globally distributed users, or in the LAN
+- Connection persistence with automatic reconnection
+
+## Security related
+
+- Secure handshake (adding new contacts) with a pre-shared key
+- All the communication is encrypted, and signed
 
 # How to run in your machine
 
@@ -80,7 +114,7 @@ After starting the app and informing the configuration values, it should be poss
 
 That's it! It's a simple application sending secure encrypted messages from one node to the other.
 
-## What distributed and end-to-end enctypted means in the context of the project
+# What distributed and end-to-end enctypted means in the context of the project
 
 Most messaging apps requires the user to be registered to some central authority. This way, even tho the messages are exchanged between contacts (and are virtually only readable by the contacts itself), if the central authority goes down, is blocked by the ISP or bans your user account, the messaging doesn't work anymore for you. That centralization isn't all bad: imagine you messaging someone without knowing if that person is actually who you want to chat with.
 
@@ -311,25 +345,59 @@ This project is open source, and contribution is much appreciated both in the co
 
 At the end, I decided to document in details this project, because even being simple, it served its purpose really well: to teach me things I didn't know about encryption, synchronization and interconnecting users.
 
-## Asymmetric encryption method and library
+## Friend's friends
 
-The part I would most study and change would be the asymmetric encryption method and library. Probably, the RSA encryption algorithm can be replaces with a stronger one, but most important, the library used for the RSA encryption is not well-known. One alternative to it would probably be the [PyCryptodome](https://pycryptodome.readthedocs.io/en/latest/src/public_key/rsa.html), which has a better reputation.
+Forwarding a friend handshake. In this case, we can ask B to handshake A with C, and we don't need to have a private key. This would be useful for groups. It should be saved that C was added through B.
 
-## Group chat
+A --(is friend of)--> B
 
-If your willing to extend this project, a group chat is one relevant topic, but it's not simple, it's not as simple as relaying the message to all users in a grou, rather, i think it's necessary to keep a connection between each pair of users in a group.
+B --(is friend of)--> C
 
-## Message sygning and synchronizing
+A --> B --> C
 
-Since we already have asymmetric encryption, the key pairs can be used to sign each send message, so we can confirm that a message was sent by a specific user. Having message signing, a good feature would be the synchronization of messages, in a way that each user have all the sent and received messages. If a friend of that user loses it's sent or received messages, it can request a synchronization from the messages stored in other user's system.
+## Group chats
+
+There is no `User -> Server -> All Users`. Rather, all the users must have as friends all the other users, and there should be the possibility for a node to forward a message received from a user in a group to its friends.
+
+Probably, the user must have at least another friend in the group, from which the messages will be forwarded. In that case, there must be a note indicating that the friend forwarded that message as being sent from another user in the group, reducing the trust level.
+
+[](https://medium.com/@asierr/implementing-end-to-end-encryption-for-group-chats-f068577c53de#:~:text=Messages%20sent%20to%20the%20group,it%20to%20read%20the%20message.)
+
+[](https://security.stackexchange.com/questions/126768/which-protocols-exist-for-end-to-end-encrypted-group-chat)
+
+[](https://www.quora.com/How-does-group-messaging-work-with-end-to-end-encryption)
+
+[](https://en.wikipedia.org/wiki/Signal_%28software%29#Implementations)
+
+[](https://security.stackexchange.com/questions/119633/how-does-whatsapps-new-group-chat-protocol-work-and-what-security-properties-do/119656#119656)
+
+[IMPORTANT](https://www.whatsapp.com/security/WhatsApp-Security-Whitepaper.pdf)
+
+[](https://messaginglayersecurity.rocks/)
+
+[](https://serverfault.com/a/10919)
+
+[](https://www.sobyte.net/post/2021-09/golang-netpoll/)
+
+[](https://gist.github.com/Lisprez/7b52f4a55cd0fcf96324b5f02b865e54)
+
+[](https://en.wikipedia.org/wiki/Epoll)
+
+[](https://www.youtube.com/watch?v=_3LpJ6I-tzc)
+
+[](https://gist.github.com/Lisprez/7b52f4a55cd0fcf96324b5f02b865e54)
+
+[Signal protocol, used by WhatsApp](https://en.wikipedia.org/wiki/Signal_Protocol)
+
+To scale more the relay server (programming language independent), we would need to use the [Linux epoll](https://man7.org/linux/man-pages/man7/epoll.7.html), and handle file descriptors and syscalls directly.
+
+Apparently, the group chat implementation would be a multiple one-to-one chat, in which each client have a key pair with each other user.
+
+Even having multiple one-to-one chat, the message forwarding between trusted users in the group would still be recommended, otherwise we would need the sender online to receive the message, making the message consistency in the group a mess. When a message is forwarded through a trusted user, this can be flagged in the message, while we don't receive the message from the original sender.
 
 ## Offline messages and queueing in the relay server
 
-Currently, the relay server doesn't have a queue, neither it does save messages if the destination node is offline. This is also a good feature to have.
-
-## File transfer
-
-This is a big feature the project could have, but the transfer wouldn't be just a send and receive. Rather, the file must be sent in parts, and there should be a whole process to organize, send, receive and confirm the sending of a file.
+Currently, the relay server doesn't have a queue, neither does it save messages if the destination node is offline. This is also a good feature to have.
 
 ## Confirm when accepting a friend request
 
@@ -338,6 +406,66 @@ Currently, when a user receives a friend request from one which have the same pr
 ## Username uniqueness
 
 When using the "distributed" architectured of this project, we cannot rely on the uniqueness of the usernames. The relay server is prepared to work with duplicate usernames, but the nodes are not tested to that case.
+
+# Support for multiple relays
+
+- One client should always be connected to multiple relay servers
+- There should be a confirmation to establish a single client-to-client connection
+- There should be a routing algorithm to connect one client to the relay server that has the other client connected to
+
+TODO: Describe better
+
+# UDP P2P -> UDP relay -> TCP relay
+
+Initially, I started this project by using UDP peer-to-peer to connect users. I quickly found out peer-to-peer connections are not that well supported by the current networks.
+
+## UDP, and its limitations
+
+In fact, UDP could work well if correctly implemented for the purpose of this project.
+
+At first, when the app was used only for short text messages, sending UDP packets in a localhost relay server worked well. The limitation I hit was when I started sending large messages, or files over the internet.
+
+### How much data can I fit in an UDP packet?
+
+Different from TCP, when using UDP we always send packets with a maximum size. The theoretical maximum size of a UDP packet is 64KiB, but the most common [Maximum Transmission Unit](https://en.wikipedia.org/wiki/Maximum_transmission_unit) present in the internet is 1500 bytes. [To be safe, we can stick to a maximum of 508 bytes of payload in an single UDP packet](https://stackoverflow.com/a/35697810/17772642). If you send more data than what can fit in one packet along the path your packet makes, it'll just be discarded.
+
+If we want to send more than 508 bytes (such as a 10MB file + metadata + encryption + destination client information), we would need to [break this data into small pieces](https://skerritt.blog/bit-torrent/), and send them using thousands of packets. That's not impossible, but we would need to implement a method of indexing these packets, and add more information (bytes) to the content regarding integrity check, and indexing. In practice, just to identify the destination user, this application usees 600 bytes (more than can safely fit in a single UDP packet).
+
+Other big problem is sending thousands of UDP packets. We can't just send all of them at once. If your router, the ISP infrastructure, or the server can't read them in time, or if some part implements a rate limit, the packets would just be discarded, so we send all of the packets again.
+
+If using UDP to transfer a lot of data, an acknowledgement system can be implemented, in which we gradually send more packets per second until we detect that some packets were not delivered.
+
+There's an awesome [documentation of the uTorrent Transport Protocol](https://www.bittorrent.org/beps/bep_0029.html) explaining how they manage congestion control, acknowledgement, retry, and segmentation in UDP. It's implementation could be found in the [libutp](https://github.com/bittorrent/libutp).
+
+### Simpler solution, so I can work on other things
+
+I quickly noticed that if I choose to use UDP, this application would have to implement alternatives for most of the features already present in the TCP protocol, so I chose to just use TCP.
+
+Note: If the necessity to handle millions of connections arise, the UDP would need to be highly considered, since it doesn't "waste" resources by mantaining a connection.
+
+### Switching to TCP
+
+Until now, the application was using the UDP model of packing information into one single packet, and sending it. If we used TCP like this, we would start a new connection (and make the whole TCP handshake), send the data, and end the connection. This would introduce latency, and a lot of wasted resources just handling these connections.
+
+To fix this, we must update the application to use TCP as it was meant to be used: for straming data. The main concept that I would like to mention here is that in an open TCP connection, we only send/receive bits of data, without a discrete conventioned start, and end. In this case, we must implement a protocol to identify the starting, and end of one piece of data. One way of doing it is by using a special sequence of characters to inform the end of a sequence (HTTP does that). In this application, I opted to use a 4-byte magic number (a sequence of bytes that indicates the start of a piece of information), the 4-byte number, indicating the length of the content, followed by the content itself. This way, our application could send one "packet" of information with a theoretical maximum of 4GiB (interpreting the 4-byte number as an uint32). For practical purposes, described in the Relay Server section, we limited the content size to ~100KiB.
+
+### More on the TCP straming characteristic
+
+Some not so obvious things abount TCP that I would like to mention:
+
+- There's no convention for indicating the start, and end of a portion of data
+- The transmission adapts itself to the available network speed (congestion control)
+- Lost packets are resent
+- The stream is sequential, so to read more data, all the previous content must be read.
+- There's a built-in cheksum, so a data corruption is less probable
+- By default, we don't directly send, or receive the data. When we call `send()`, and `recv()` functions for a TCP socket, we just tell the kernel that we want to send, or receive some data. When, and at what rate it will be sent, or received is managed by the operating system, and the network infrastructure. Most importantly, calling `send()` doesn't mean the data will be delivered, nor that it will be sent at the exact same time the function was called, and calling `recv()` returns the bytes available in the read buffer of the operating system, which can be nothing, or less data then what were sent (we can call `recv(1024)` to receive 1024 bytes, and get back just 100 bytes). Just to ilustrate the distance between requesting data to be sent, and that data actually being sent, [TCP can literally wait up to 200ms to send the data, as mentioned in the section Forcing data delivery in the Wikipedia article about TCP](https://en.wikipedia.org/wiki/Transmission_Control_Protocol#Forcing_data_delivery).
+- There's 3 ways of sending data on a TCP stream: blocking synchronous, non-blocking synchronouse, and asynchronous
+
+To finish this section, I recommend the [Wikipedia article about the Transmission Control Protocol](https://en.wikipedia.org/wiki/Transmission_Control_Protocol), which has a lot of precious information, and details.
+
+# Connecting thousands of clients
+
+Out of curiosity, I tested different architectures for the relay server to handle thousands of simultaneous clients.
 
 # TODO: SPEED LIMITATION / THE NEW CHALLANGE: "LARGE" CONTENT, AND "FAST" TRANSFER SPEEDS
 
@@ -357,13 +485,7 @@ Sending from one client to the other would block both sides of the communication
 
 ## The (not ideal) first architecture decision
 
-UDP looks like a good option, but the server network could easily be congested. Also, it is more common to UDP packets be blocked by the firewall
-
-[](https://skerritt.blog/bit-torrent/)
-
 [](https://www.isi.edu/nsnam/DIRECTED_RESEARCH/DR_HYUNAH/D-Research/slow-start-tcp.html?ref=skerritt.blog)
-
-[](https://www.bittorrent.org/beps/bep_0029.html)
 
 [](https://www.evanjones.ca/read-write-buffer-size.html)
 
@@ -373,34 +495,16 @@ UDP looks like a good option, but the server network could easily be congested. 
 
 [](https://discord.com/blog/why-discord-is-switching-from-go-to-rust)
 
-[libutp - The uTorrent Transport Protocol library](https://github.com/bittorrent/libutp)
-
 [](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts)
 
 [](https://blog.whatsapp.com/1-million-is-so-2011)
-
-# Future: Add support for multiple relays
-
-- One client should always be connected to multiple relay servers
-- There should be a confirmation to establish a single client-to-client connection
-- There should be a routing algorithm to connect one client to the relay server that has the other client connected to
-
-TODO: Describe better
 
 # Switching from UDP to TCP
 
 TODO: Describe
 
-- The initial implementation
-- UDP limitations
-- The control overhead
-- MTU of 1500
-- Speed, retransmission, and congestion
-- How uTorrent does it, and the uTP
-- UDP is not a big trouble with P2P, but for server QoS it is
-- TCP (we were not using P2P, so there is no big reason to use UDP)
-- Streaming (and not packet) challange
-- Relaying
+- QoS with TCP (bandwidth) vs UDP (packets per second).
+- Relaying (locking two connections in TCP)
 
 # TCP details
 
@@ -555,32 +659,6 @@ It's not that easy to keep a TCP connection always active, when the user change 
 
 TODO: Describe better.
 
-# Feature idea (and its challanges): Group chats
-
-There is no `User -> Server -> All Users`. Rather, all the users must have as friends all the other users, and there should be the possibility for a node to forward a message received from a user in a group to its friends.
-
-Probably, the user must have at least another friend in the group, from which the messages will be forwarded. In that case, there must be a note indicating that the friend forwarded that message as being sent from another user in the group, reducing the trust level.
-
-[](https://medium.com/@asierr/implementing-end-to-end-encryption-for-group-chats-f068577c53de#:~:text=Messages%20sent%20to%20the%20group,it%20to%20read%20the%20message.)
-
-[](https://security.stackexchange.com/questions/126768/which-protocols-exist-for-end-to-end-encrypted-group-chat)
-
-[](https://www.quora.com/How-does-group-messaging-work-with-end-to-end-encryption)
-
-[](https://en.wikipedia.org/wiki/Signal_%28software%29#Implementations)
-
-[](https://security.stackexchange.com/questions/119633/how-does-whatsapps-new-group-chat-protocol-work-and-what-security-properties-do/119656#119656)
-
-[IMPORTANT](https://www.whatsapp.com/security/WhatsApp-Security-Whitepaper.pdf)
-
-[](https://messaginglayersecurity.rocks/)
-
-[](https://serverfault.com/a/10919)
-
-Apparently, the group chat implementation would be a multiple one-to-one chat, in which each client have a key pair with each other user.
-
-Even having multiple one-to-one chat, the message forwarding between trusted users in the group would still be recommended, otherwise we would need the sender online to receive the message, making the message consistency in the group a mess. When a message is forwarded through a trusted user, this can be flagged in the message, while we don't receive the message from the original sender.
-
 # Persistence, and its scalability
 
 Currently, the persistence of friends and messages are implemented the simplest way: an append-only file, in which each line is a JSON string containing the data of a registry. When loading, all the lines are read, and loaded. Currently the persisted friends never gets updated, but the messeges does, and for that case, each update to one message is saved as a new line (a new registry) in the file. When loading, the last message replaces the previous messages that have the same ID.
@@ -599,14 +677,6 @@ It's easy for one client to not be in sync with the other, which can be:
 
 The messages, and files are already resynchronized when an existing client reconnects, but the delivery, and read confirmations should be implemented.
 
-# IDEA Friend's friend
-
-Forwarding a friend handshake. In this case, we can ask B to handshake A with C, and we don't need to have a private key. This would be useful for groups. It should be saved that C was added through B.
-
-A --(is friend of)--> B
-B --(is friend of)--> C
-A --> B --> C
-
 # Limiting the use of the relay server
 
 Initially, I implemented a throughput, and connection limit in the application, but the Linux network stack has more efficient ways of doing this:
@@ -615,3 +685,10 @@ Initially, I implemented a throughput, and connection limit in the application, 
 - [tc module](https://lartc.org/howto/lartc.qdisc.classful.html) to implement traffic shaping limiting the throughput for each IP
 
 Also, this can be implemented in the router, or load balancer
+
+# Idea for scaling even more the relay server
+
+- Have multiple edge servers, that connects directly to the clients
+- Have an internal queue-based routing mechanism to forward the messages
+
+It should be noted that 2 nodes have to have at least one server in common to be able to communicate.
