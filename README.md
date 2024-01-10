@@ -1,22 +1,74 @@
-This is a PoC project of a distributed end-to-end encrypted messaging app. Since this app was used to learn more about encryption, messaging, and connection, I tried my best to document the architecture and issues I had while developing it. This system is not meant to be used in production without a broad security research, and software improvement, but it's a fun project to play with and extend.
+Securicator is a **distributed end-to-end encrypted** messaging app, including file transfer, deliver and read confirmation, persistence, and securely adding new friends.
+This is an experimental project, developed to learn about networking, and encryption. Because of that, I documented the architecture in details, as well as the main challanges I had while devloping it, and its solutions.
+
+If you plan to use this in production (to send confidential messages), keep in mind that a thorough security analysis is requried, and there is a "Security checklist" section to help you start.
 
 ![Three terminals: Node A exchanging messages with Node B, the relay server forwarding the messages, and Node B exchanging messages with Node A](assets/hero.gif)
 
-# Why are the processes documented in detail in this document?
+# Overview
 
-As important as the client implementation in Python is the documentation of the architecture. Currently, there is only a Python + web application meant to run in a computer or laptop, but this process can be ported to any other native system (iOS, Android, MacOS, Linux, Windows, etc.), as long as all the necessary features are implemented, the clients can use the same relay server, and interchange messages.
+Even it looks simple to exchange message sand files between two clients, there's a lot involved in the process. This section presents a summary of the main modules of this project. Later in this document, there are detailed versions of the topics mentioned in this section.
 
-Also, this being a PoC project, I documented most of the dscoveries I had while researching encryption, persistence, relay, TCP, handshaking, fragmentation, etc.
+## Handshaking
 
-# WhatsApp, Telegram, and Signal
+The process of adding a new friend is called "handshaking", and involves generating, and exchanging criptographic keys. This process is the starting point of a secure communication. Currently, the only way to add a friend is by having a pre-shared key with the user (a password that both users know). This way, we increase the trust that the other client is actually the friend you wanted to add, and decrease the probability of someone intercepting the connection, decryping, and compromising the session.
+
+## Exchanging messages and files
+
+All the communication between users (status, biography, messages, files, metadata, and confirmations) only happens after the handshake. This way, all these messages are end-to-end encrypted, and (theoretically) only the users participating the chat can view, and exchange messages.
+Each friendship is cryptographically isolated, meaning there's no single key that represents a user, rather, for each session stablished between two friends, completly new cryptographic keys are generated. This way, imagining a relationship between `User A` and `User B`, only `User A` knows that the other user is `User A`. If intercepting the traffic, other friends, or an attacker will only know that there's two users communicating, but won't know who are they.
+
+## Distributed architecture, and the relay server
+
+To be able to communicate with other users, there must be a relay server, which forwards encrypted messages from one client, to the other. This server is stateless, and doesn't handle authentication, authorization, nor accounting. This application was architected in a way that all the necessary information is persisted in the client, and the relay server has the least possible responsibility in a communication.
+
+## Securicator Client, and Web Interface
+
+This project includes a web interface, which connects via an HTTP API to the Securicator Client. That's the recommended easiest and most complete method of using the application. In limited environments, and for testing, the Securicator Client (which includes a Command Line Interface) can be used alone for basic activities such as adding friends, and sending messages.
+
+# Distributed, and end-to-end enctypted architecture in the context of this project
+
+Most messaging apps requires the user to be registered to some central authority. This way, even tho the messages are exchanged between contacts (and are virtually only readable by the contacts itself), if the central authority goes down, is blocked by the ISP or bans your user account, the app won't work anymore. Even having this limitation, the centralization provides authentication: imagine you messaging someone by the phone number without knowing if that person who responded is actually the owner of that phone number.
+
+The architecture of this project doesn't rely on the user being registered to some central authority. Rather, the trust between each pair of users is all it's needed to exchange messages. There is no concept of a globally unique user, nor usernames. Each pair of users know and trust each others by their criptographic keys. When adding a new contact, a pre-shared key (password previously exchanged between the two contacts) is used to stablish that first "handshake". After that, the two users trust each others, and that initial pre-shared key is never used again.
+
+This way, even not having a central authority to manage user authentication, this process can still be done locally, between each client.
+
+## The Relay Server
+
+By having the decentralization, a way to connect one user to the other (via the internet) is needed. The first (quick & dirty) solution to achieve this is to have open ports in the firewalls, and to use the public IP of the two users willing to communicate. This solution is impractical, as it would require access to the firewall (at home it's possible, but at organizations, cellular, or public places it's impossible most of the times), and a "fixed" public IP (even using a [Dynamic DNS](https://en.wikipedia.org/wiki/Dynamic_DNS), cellular and [Carrier-grade NAT](https://en.wikipedia.org/wiki/Carrier-grade_NAT) networks won't support it).
+
+To stablish the connection between multiple clients in different globally distributed networks, this project includes a relay server, which forwards messages between connected clients. Even having relay servers, the architecture for connecting clients is still distributed, since the servers are used only to forward messages, and **the clients don't rely on that server**.
+
+The relay server architecture was built to depend as little as possible in these servers. This was achieved by the following functionalities:
+
+- In correctly implemented, servers would never filter, or block users from connecting
+- Any authority, or person could run a relay server, or a cluster of servers (and organizations could have their private relay server for internal communication)
+- The user would have a pool of available servers, and could dynamically choose the one to use
+
+In general, the architectured is prepared to not depend on the relay server, and it's developed to be easily swapped by any other server in any country, provider, or authority.
+
+### Limitations of the architecture
+
+Since the relay server doesn't handle authentication, any user can announce itself with any username, and start receiving messages directed to any user having that username. In that worst case, the user unintended to receive the messages will receive only encrypted data, but that still not ideal. This limitation could be fixed by forcing both users to authenticate between themselves in the relay server, and this is described in more details in the section about suggestions for extending this project.
+
+Another limitation is the requirement of a pre-shared key, which must me known by both users trying to be added as friends. This requires a prior communication channel (in other platform) between the users.
+
+The necessity of a third platform creates a security vulnerability of compromising the handshake process, since that pre-shared key could be known if the platform used is compromised. Possible mitigations to this vulnerability are:
+
+- Use different platforms (including phyisical) to exchange each part of the pre-shared key
+- Using personal information that only the other person knows to compose the pre-shared key
+- Replacing the pre-shared key with a stronger encryption as soon as possible (this is done automatically)
+
+It should be noted that the pre-shared key is used only once when adding a friend. As soon as the keys are exchanged, a stronger encryption algorithm that don't depend on pre-shared keys is used. After successfully adding a friend, if these exchanged keys are intercepted, and the pre-shared key is revealed afterwards, the secure communication is unaffected.
+
+The limitation of the necessity of a pre-shared key can be reduced by adding friends trusted by other friends, and this suggestion is also detailed in the section about suggestiong for extending this project.
+
+## WhatsApp, Telegram, and Signal
 
 It's important to clarify the difference between this implementation, and the most common chat apps, as all of them uses end-to-end encryption, and appear private and secure.
 
-## Important note on censorship, and government involvement
-
-TODO: Inform
-
-## Centralization
+### Centralization
 
 The primary difference is that the 3 main stream messaging apps all use a centralized server/authority for user authentication, and messaging.
 One advantage of these platforms is that just by knowing one's phone number, username, or being in the same group, I can start a new chat with that person, and that's important in today's context. The only problem is that there's a dependency in these servers.
@@ -26,7 +78,7 @@ Also, if the ISP, cloud provider, or the company that owns the app decies to not
 
 The proposal of this project is to not depend on a central authority, and that is achieved by focusing the authentication on the client, and using the servers just to make channels between two users. If a server goes down, or is blocked, the client application can automatically choose another healthy server, which can be run by any person, or organization.
 
-## Open implementaion
+### Open implementaion
 
 This project describes, and shows the complete implementation of the protocols, allowing people to not need to trust on a company, rather to run, and analyze the source code of the running application. In other words, you can have access to everything related to the process, stored data, and the application you're using for communication.
 
@@ -34,97 +86,89 @@ Everything critical runs locally, and can be analyzed by anyone with expertise t
 
 The part that you can't control, analyze, or change is the relay servers, which is not responsible for authentication, nor encryption. Its only job is to forward messages from one client, to the other.
 
-## A note on privacy
+### A note on privacy
 
 Even by using a strong and reliable end-to-end encryption, by using these apps (which don't share publicly the source code) you trust the company running the app, operating system, and app store. That's not a problem, that's just information to keep in mind.
 
 In a hypotetical case where the messaging app, app store, or operating system is forced to reveal your messages, that's easy to be achieved just by launching a software patch.
 
+### Analogy
+
+The best analogy I could find about centralization and decentralization regarding this application is with remote access tools for servers.
+
+This software can be associated with the open source standard Secure Shell (SSH) Protocol, in which the authentication and trust happens between only the destination server, and the client trying to remote access to it. No third party is needed, and it can work locally, in a network which only the two devices are connected.
+
+Other messaging apps such as WhatsApp, and Telegram can be associated with proprietary remote access management tools (such as TeamViewer, and AnyDesk), which even having end-to-end ecryption, the authentication depends on a server managed by the tool, and the access depends on the continuous connectivity with the tool's servers.
+
 # Using the application
+
+TODO: This section doesn't belong here
 
 While testing, I actually used this application to communicate with a friend, but keep in mind that besides it being very experimental, you'll have to run a relay server, and have the necessary applications installed in the mechines tou want to communicate. Also, both nodes must be online for sending, or receiving messages. If you send a message to your offline friend, the message will arrive only when both of you are connected. The good part is that you can leave this application running always in the background, even if not opening the web interface.
 
-# List of functionalities and characteristics of the app
+# Setup the project
 
-## General
+To exchange messages, this project requires 3 applications to be running:
 
-- Sending messages between contacts
-- Deliver and read confirmations
-- Sending any files
-- Persisting the messages and contacts
-- Exchanging messages between globally distributed users, or in the LAN
-- Connection persistence with automatic reconnection
+- The relay server (which can be run locally)
+- The client (recommended to run locally)
+- The web interface (recommended to run locally, but not strictly necessary, since the client has a CLI)
 
-## Security related
+## Relay server (gorelay)
 
-- Secure handshake (adding new contacts) with a pre-shared key
-- All the communication is encrypted, and signed
+The relay server, written in Golang is located in the folder `gorelay`. The Golang version 1.21.1 was used, but this can easily be upgraded to the version running in your machine.
 
-# How to run in your machine
-
-## Dependencies
-
-First, you need Python 3.6 installed, and pip (Pthon's package manager). Then, install the dependencies:
+Inside the `gorelay` foder, run:
 
 ```bash
-pip3 install -r requirements.txt
+go run .
 ```
 
-## Running the relay server
+If it ran correctly, no error messages will be shown, and the terminal will be printing periodically the connected user list:
 
-For two nodes to communicate, there must be a known relay server running, and the relay server needs to have the port TODO: port number open.
-
-To run the server, you must install the dependencies, and run the Python script located in TODO: relative path for the Python script
-
-## Running the nodes
-
-To run the nodes, after installing the dependencies, run the Python script located in TODO: relative path for the Python script. You should run the same script in two terminals to represent two nodes willing to communicate with eachother.
-
-## Starting the app
-
-When starting the nodes, some information will be requested, such as the username, pre-shared key, and the IP address of the relay server. Following, there is an example of the information requested (values in brackets are the default values):
-
-```bash
-$ python3 main.py
-Enter your username: nodeA
-Enter your pre-shared key [123456]:
-Enter the relay server IP address: 192.168.30.1
-Enter the relay server port [5000]:
-Setup finished. The app is ready.
+```text
+------------------------------------
+Connections:
 ```
 
-The same process can be applied to Node B, just changing the username, and keeping the same server and pre-shared key.
+This server will be used to connect different users together.
 
-## Adding a contact, and sending messages
+## Securicator Client
 
-After starting the app and informing the configuration values, it should be possible to add a contact, and to send messages. Following, messages from Node A will be prefixed with "[A]", and from Node B with "[B]"
+You must have Python 3.6, and pip (Python's package manager) installed.
 
-```bash
-[A] friend nodeB
-[B] Friend request accepted from nodeA
-[A] Successfully added nodeB
+Inside the folder `client`, install the dependencies with `pip3 install -r ./requirements.txt`
 
-[A] message nodeB Hello, world!
+After installing it, run `python3 main.py`
 
-[B] nodeA: Hello, world!
+After running the command, the application will ask your username, and then initialize, and connect to the relay server.
 
-[A] nodeA: Message delivered
-[A] nodeA: Message read
-```
+## Web interface
 
-That's it! It's a simple application sending secure encrypted messages from one node to the other.
+The securicator can be used just with the Securicator Client CLI, but this project includes a web interface for convenience. To run it, you'll first need NodeJS (tested with 20.10.0 LTS), and yarn (one NodeJS package manager).
 
-# What distributed and end-to-end enctypted means in the context of the project
+Inside the folder `web`, run:
 
-Most messaging apps requires the user to be registered to some central authority. This way, even tho the messages are exchanged between contacts (and are virtually only readable by the contacts itself), if the central authority goes down, is blocked by the ISP or bans your user account, the messaging doesn't work anymore for you. That centralization isn't all bad: imagine you messaging someone without knowing if that person is actually who you want to chat with.
+- `yarn install`
+- `yarn start`
 
-The architecture of this project doesn't rely on the user being registered to some central authority. Rather, the trust between each pair of users is all it's needed to exchange messages. There is no concept of a global user, or globally unique usernames. Each pair of users know and trust each others username and keys. When adding a new contact, a pre-shared key (password exchanged between the two contacts previously) is used to stablish only that first "handshake". After that, the two users trust each others, and that initial pre-shared key is never used again.
+The project should be running, and accessible on [http://localhost:3000/](http://localhost:3000/). This web interface will connect to a REST API running on the Securicator Client. This imposes a limitation: only the first Securicator Client opened will be used with this web interface. The others will fail to start the API server, but will work correctly with the built-in CLI.
 
-This way we don't need a central authority to manage user authentication, but so far we can only communicate with users that have a public IP with an application listening on an open port, which won't be conveninent, and not event possible for most people. In LAN networks, it's easier for this to work if we can manage the OS's firewall, and the network infrastructure allows communication between the hosts, but the communication would be limited to people in the same network.
+## How to use
 
-To fix this, a way to communicate between multiple clients in different globally distributed networks is necessary. For this, we can use a relay server (actually, multiple relay servers with routing capacity would be better), which basically forward messages from usernames to usernames. One can argue that if there is a central server to relay messages, the system is not distributed, but the relay server serves only to forward the messages. If implemented correctly, the server would never filter or block users from connecting. Moreover, the server doesn't need to be controlled by a central authority, and it would be better for each client to have dozens of "root relay servers" from different authorities, and select the most efficient for connecting to the destination username. If necessary, the user can host it's own server, or if using in an organization, there can be one secure relay server exclusive for communication between users in that same organization.
+After startup, the database files will be created, and there will be no friends, and no messages. To add a friend, in the web interface, click on `Add friend`, and inform its username (for testing, you can run another Securicator Client in the same machine, with a different username, and add it as a friend). If the handshake occurs correctly, the friend will be available in the friends list for chatting.
 
-Two drawbacks I would like mentioning about that distributed relaying architecture is that anyone can say they are you (by using your username) and receiving messages directed to you, and there is a need to have a prior commuication with the contact you want to add, to exchange the pre-shared key. Virtually, there is no problem relaying a message to unwanted users, since the system uses a strong encryption, but also it isn't ideal. To fix this, the relay server can require the user pair to stablish a handshake between them, fixing the relay issue, but again the server would be allowed to intercept all those requests. As said before, the handshare requires that a pre-shared key is known between both users. Even the pre-shared key being used only once to stablish the encrypted handshake, if the packet is intercepted and the key is known by the interceptor, the whole secure communication process is compromised. For this, it's necessary that the users have a prior communication channel. They can physically exchange that information, use other encrypted and secure playform or send parts of the pre-shared key in multiple different communication platforms, or build a trust network between trust contacts, or require a personal information that only the person knows, to include in the key.
+On the sidebar, you can click on your friend's username to open the chat window, and start sending messages and files.
+
+If the recipient is not receiving the messages, these messages will be stored, and delivered to the destination as soon as the user connects.
+
+It must be noted that the handshake process (that occurs when adding a friend) is synchronous, and need both users to be connected. After the friend is added, all the other operations are asynchronous.
+
+## Using it in the real life to chat with someone outside your LAN
+
+The only difference when running for connecting with acutal users without your LAN is that you, and the other users must use the same relay sever. For this, I recommend using the smallest virtual machine from any cloud provider. At startup, when the Securicator Client asks for the relay server IP, you can inform the public IP of the relay server, and use it normally.
+
+All the necessary information is saved locally, so you can change the server you're using, and the message will be delivered as long as the recipient is using the same server.
 
 # The handshake in-depth
 
@@ -178,7 +222,7 @@ In details, the actual content that needs to be encrypted is first encrypted wit
 
 This is the method of encryption actually used in this application. Using this, the content length is virtually unlimited, while the process is still secure.
 
-# Architecture for interconnecting users
+# Connecting multiple clients
 
 As mentioned before, this application was architectured to not depend the most on the interconnection method between users. Having a secure encryption, it's not a big security risk if the messages are intercepted.
 
@@ -339,83 +383,7 @@ TODO: Explain more
 - Relay and NAT TURN and NAT STUN.
 - Explain different ports in nat, the router reusing ports, etc.
 
-# Extending this project
-
-This project is open source, and contribution is much appreciated both in the code itself, and the documentation and examples. This project is not activelly maintained, and it was intended more as a PoC and to document this process, than to be used in production, so keep in mind that if you want to use this project, a more in-depth analysis of the algorithms and the encryption must be done.
-
-At the end, I decided to document in details this project, because even being simple, it served its purpose really well: to teach me things I didn't know about encryption, synchronization and interconnecting users.
-
-## Friend's friends
-
-Forwarding a friend handshake. In this case, we can ask B to handshake A with C, and we don't need to have a private key. This would be useful for groups. It should be saved that C was added through B.
-
-A --(is friend of)--> B
-
-B --(is friend of)--> C
-
-A --> B --> C
-
-## Group chats
-
-There is no `User -> Server -> All Users`. Rather, all the users must have as friends all the other users, and there should be the possibility for a node to forward a message received from a user in a group to its friends.
-
-Probably, the user must have at least another friend in the group, from which the messages will be forwarded. In that case, there must be a note indicating that the friend forwarded that message as being sent from another user in the group, reducing the trust level.
-
-[](https://medium.com/@asierr/implementing-end-to-end-encryption-for-group-chats-f068577c53de#:~:text=Messages%20sent%20to%20the%20group,it%20to%20read%20the%20message.)
-
-[](https://security.stackexchange.com/questions/126768/which-protocols-exist-for-end-to-end-encrypted-group-chat)
-
-[](https://www.quora.com/How-does-group-messaging-work-with-end-to-end-encryption)
-
-[](https://en.wikipedia.org/wiki/Signal_%28software%29#Implementations)
-
-[](https://security.stackexchange.com/questions/119633/how-does-whatsapps-new-group-chat-protocol-work-and-what-security-properties-do/119656#119656)
-
-[IMPORTANT](https://www.whatsapp.com/security/WhatsApp-Security-Whitepaper.pdf)
-
-[](https://messaginglayersecurity.rocks/)
-
-[](https://serverfault.com/a/10919)
-
-[](https://www.sobyte.net/post/2021-09/golang-netpoll/)
-
-[](https://gist.github.com/Lisprez/7b52f4a55cd0fcf96324b5f02b865e54)
-
-[](https://en.wikipedia.org/wiki/Epoll)
-
-[](https://www.youtube.com/watch?v=_3LpJ6I-tzc)
-
-[](https://gist.github.com/Lisprez/7b52f4a55cd0fcf96324b5f02b865e54)
-
-[Signal protocol, used by WhatsApp](https://en.wikipedia.org/wiki/Signal_Protocol)
-
-To scale more the relay server (programming language independent), we would need to use the [Linux epoll](https://man7.org/linux/man-pages/man7/epoll.7.html), and handle file descriptors and syscalls directly.
-
-Apparently, the group chat implementation would be a multiple one-to-one chat, in which each client have a key pair with each other user.
-
-Even having multiple one-to-one chat, the message forwarding between trusted users in the group would still be recommended, otherwise we would need the sender online to receive the message, making the message consistency in the group a mess. When a message is forwarded through a trusted user, this can be flagged in the message, while we don't receive the message from the original sender.
-
-## Offline messages and queueing in the relay server
-
-Currently, the relay server doesn't have a queue, neither does it save messages if the destination node is offline. This is also a good feature to have.
-
-## Confirm when accepting a friend request
-
-Currently, when a user receives a friend request from one which have the same pre-shared key, the request is automatically accepted, and the user is instantly added to the friend list. It's a great update to prompt the receiving user to accept or deny the request. Also, there could be a "allow friend requests" state, and the pre-shared could be tied to a specific username.
-
-## Username uniqueness
-
-When using the "distributed" architectured of this project, we cannot rely on the uniqueness of the usernames. The relay server is prepared to work with duplicate usernames, but the nodes are not tested to that case.
-
-# Support for multiple relays
-
-- One client should always be connected to multiple relay servers
-- There should be a confirmation to establish a single client-to-client connection
-- There should be a routing algorithm to connect one client to the relay server that has the other client connected to
-
-TODO: Describe better
-
-# UDP P2P -> UDP relay -> TCP relay
+# UDP Peer-to-Peer -> UDP Relay -> TCP Relay
 
 Initially, I started this project by using UDP peer-to-peer to connect users. I quickly found out peer-to-peer connections are not that well supported by the current networks.
 
@@ -506,30 +474,105 @@ TODO: Describe
 - QoS with TCP (bandwidth) vs UDP (packets per second).
 - Relaying (locking two connections in TCP)
 
+## The first relay server
+
+Python limitation, 2000 threads
+
+Memory usage (and the size we should use for on SecurePacket)
+
+CPU usage (idling with goroutines, or waiting for I/O)
+
+## Scaling up to 1 million simultaneous users in one machine
+
+Handling resources in the machine
+
+Max open files
+
+Max processes
+
+Whatsapp guide
+
+Read and write buffer sizes
+
+## Scaling for mutliple million simultaneous users (horizontal scaling)
+
+Previous techniques + Distributing, horizontal scaling
+
+# OS
+
+Leave as much as possible for the OS to handle. tc, connlimit, buffering
+
 # TCP details
 
 TODO: Describe better
-
-- send() and recv() does not necessarely send or receive the complete buffer size. This caused me a lot of headache (when parsing the first 500 bytes - the username)
-- TCP 200ms delay (and the NODELAY flag)
-- The sendall method
-
-Challanges when implementing a high throughput relay server:
-
-- OS max open files
-- Python thread limit
-- Memory usage (the size we consider one SecurePacket)
-- CPU usage (the copy() function in Golang)
 
 With 2vCPU, 1GB RAM 4Gbps LAN I could reach 5047 concurrent connections each sending ~3500 bytes each 200ms, before running out of RAM, and both cores at ~80% usage on the htop command.
 
 Keeping a send buffer in the application vs in the OS.
 
+# CONNECTING NODES: The necessity of a fixed size packet, and the packet size limitation for scalability
+
+The simplest possible functional relay server would redirect byte streams from one TCP connection, to the other. In this case, the RAM usage in the relay server would not be a big concearn, because we can read and write buffers as low as 1 byte each time.
+
+While being simple, if two nodes send messages at the same time to other node, this relay method won't work, because in a TCP stream, we cannot interleave n bytes from stream A, and stream B. To understand this limtation, it must be noted that this application uses only one TCP connection/socket with only one relay server. To support multiple nodes sending at the same time, there must be a lock mechanism to allow only data from Node A to be sent to Node B until the stream ends. The problem with that is that the stream would be blocked for other messages. This is not a big problem when dealing with a few small packets, because the transmission would be blocked for ~100ms, but in the real life with congestion, latencies, and retransmissions, this transmission could easily be blocked for 5s, scaling with the number of friends one has. Moreover, a malicious node could send bytes slowly on purpose, locking one's stream for a long time, causing a DoS.
+
+The solution implemented was a buffering on the relay server. The server would wait for a complete packet of max size `n` from the origin (which can take, for example, 10 seconds to send it), and only when the server has the complete packet, it will relay the content to the destination. This way we lock a transmission for as little time as possible. The main drawback of using this method is the high amount of memory used per client in the relay server. This way, the available RAM in the server limits the amount of simultaneous connected clients. I tested 100KB buffers, which would limit a server with 100GB of RAM to handle at most 800000 connections (with a 20% margin). If we lower the buffer size to support more connected clients, the file transfer gets slower. To keep the buffer small, and support faster file transfer, one possibility is to use two TCP connections.
+
+## Two TCP connections
+
+It should be noted that the support for two TCP connections is not implemented in this application, and is listed as a suggestion.
+
+To better support more clients, and decrease the latency for small messages, and user feedback, each client could always have two connections to one relay server: one for control and small text messages (with a low buffer size, for example 10KB), and another connection exclusive for file transfer (with a larger buffer size, for example, 500KB).
+
+When sending a small text message, updating the user status, or announcing that a file was sent, the latency will be lower than when sending files. Also, if the transfer server is overloaded, there will be no impact in the other actions.
+
+## On-demmand buffers
+
+Another solution is to create these buffers on-demmand, and expand them when reading more data. In this case, it's necessary to have a timeout for reading (keeping the buffer in use) the content. Also, this packet must be kept until it is sent to the destination.
+
+In a public WhatsaApp partial benchmark, there was a RAM ratio of ~15KB per socket.
+
+After implementing it, and benchmarking, a huge improvement in RAM usage was noted when dynamically allocating buffers.
+
+# CONNECTING NODES: Benchmarking the relay server
+
+In this repository, there's a project `benchmark`, which simulate clients exchanging simple messages. The mais purpose of this benchmark is to test the maximum number of simultaneous clients, and not bandwidth.
+
+When running, it connects new clients, each sending ~2500 bytes every 1 second. As a benchmark, it records the maximum amount of simultaneous connected users.
+
+A better benchmark would be to also receive the packets, and calculate the latency to deliver these packets.
+
+I recommend to monitor the system resources while running the benchmark using `htop` for CPU and RAM, and `iftop` for network throughput.
+
+## CONNECTING NODES: Early results
+
+Using the AWS `t3.medium` instance type, with 2vCPU, 4GB RAM, and no CPU credits left, it made 16158 simultaneous clients.
+
+Using the AWS `c7i.4xlarge` instance type, with 16vCPU, 32GB RAM, it made 28000 simultaneous clients. The RAM usage was only 700MB, the CPU usage was 20% in all 16 cores, and the network throughput reached 500Mbps receiving. The bottleneck in this scenario was the machine running the benchmark, which started getting `cannot assign requested address` errors, and I didn't investigate the problem. Considering the 20% CPU usage, and the connections, a linear projection can be made to estimate the capacity of 140000 active clients in this machine.
+
+# CONNECTING NODES: Limiting the use of the relay server
+
+Initially, I implemented a throughput, and connection limit in the application, but the Linux network stack has more efficient ways of doing this:
+
+- iptables connlimit module to limit the amount of open TCP connections per IP
+- [tc module](https://lartc.org/howto/lartc.qdisc.classful.html) to implement traffic shaping limiting the throughput for each IP
+
+Also, this can be implemented in the router, or load balancer
+
+# CONNECTING NODES: Idea for scaling even more the relay server
+
+- Have multiple edge servers, that connects directly to the clients
+- Have an internal queue-based routing mechanism to forward the messages
+
+It should be noted that 2 nodes have to have at least one server in common to be able to communicate.
+
 # Security checklist
+
+This section provides a checklist with the most common security breaches and concearns related to this project. Each topic contains a general description of the vulnerability, and the explanation on how we prevented it.
 
 ## File name, and paths
 
-Currently, all files are saved as the ID of the message (which should be checked if is a valid uuidv4), with the original extension (that is filtered using a whitelist).
+Currently, all files are saved as the ID of the message (which should be checked for valid uuidv4), concatenated with the original file extension (the extension text is filtered with a list of allowed characters).
 
 ## Access control
 
@@ -557,7 +600,7 @@ The method used for signing was [PCKS#1 v1.5 (RSA)](https://pycryptodome.readthe
 
 ## File encryption
 
-The database, and received files are not encrypted.
+The database used for persistence (friends, settings, and messages), and received files are not encrypted.
 
 ## API, and web interface authentication
 
@@ -565,13 +608,13 @@ There is no authentication in the API, and web interface, but they are listening
 
 ## Public (plain-text) information
 
-By public information, I mean plain-text information present when:
+Public data can be collected when when:
 
 - There is a node using the same username as other node (receiving the same packets as the original node)
 - Intercepting network requests
 - The relay server is malicious, sniffing every forwarded packet
 
-The information that can be gathered, or derived using the previous methods are:
+The information that can be collected, or derived using the data found in the previous methods are:
 
 - The period in which a node is connected
 - The sender public key
@@ -580,9 +623,7 @@ The information that can be gathered, or derived using the previous methods are:
 - The aproximate length, and rate of the data transfer (which can be used to detect patterns in the communication between two nodes)
 - When a handshake happens (request, and confirmation)
 
-The data (not direct information) that can be gathered:
-
-- All the encrypted content transfered between the nodes
+Other than that, all the encrypted data transfered between the nodes can be collected, but they're useless without the ability to decrypt it.
 
 ## Data privacy
 
@@ -607,57 +648,9 @@ By keeping a history of the availability (when traffic is detected with an activ
 
 By analyzing the latency between nodes in multiple locations, and the destination node (passing through the relay server), the location could be estimated with small precision. This can be mitigated by adding a random delay when sending, forwarding, and receiving a message.
 
-## Time-based attacks
-
-### Algorithm time-based attacks
+## Algorithm time-based attacks
 
 I haven't analyzed the algorithms utilized for encryption, decryption, and signing for time-based attacks, but feel free to do that investigation.
-
-# The necessity of a fixed size packet, and the packet size limitation for scalability
-
-The simplest possible functional relay server would redirect byte streams from one TCP connection, to the other. In this case, the RAM usage in the relay server would not be a big concearn, because we can read and write buffers as low as 1 byte each time.
-
-While being simple, if two nodes send messages at the same time to other node, this relay method won't work, because in a TCP stream, we cannot interleave n bytes from stream A, and stream B. To understand this limtation, it must be noted that this application uses only one TCP connection/socket with only one relay server. To support multiple nodes sending at the same time, there must be a lock mechanism to allow only data from Node A to be sent to Node B until the stream ends. The problem with that is that the stream would be blocked for other messages. This is not a big problem when dealing with a few small packets, because the transmission would be blocked for ~100ms, but in the real life with congestion, latencies, and retransmissions, this transmission could easily be blocked for 5s, scaling with the number of friends one has. Moreover, a malicious node could send bytes slowly on purpose, locking one's stream for a long time, causing a DoS.
-
-The solution implemented was a buffering on the relay server. The server would wait for a complete packet of max size `n` from the origin (which can take, for example, 10 seconds to send it), and only when the server has the complete packet, it will relay the content to the destination. This way we lock a transmission for as little time as possible. The main drawback of using this method is the high amount of memory used per client in the relay server. This way, the available RAM in the server limits the amount of simultaneous connected clients. I tested 100KB buffers, which would limit a server with 100GB of RAM to handle at most 800000 connections (with a 20% margin). If we lower the buffer size to support more connected clients, the file transfer gets slower. To keep the buffer small, and support faster file transfer, one possibility is to use two TCP connections.
-
-## Two TCP connections
-
-It should be noted that the support for two TCP connections is not implemented in this application, and is listed as a suggestion.
-
-To better support more clients, and decrease the latency for small messages, and user feedback, each client could always have two connections to one relay server: one for control and small text messages (with a low buffer size, for example 10KB), and another connection exclusive for file transfer (with a larger buffer size, for example, 500KB).
-
-When sending a small text message, updating the user status, or announcing that a file was sent, the latency will be lower than when sending files. Also, if the transfer server is overloaded, there will be no impact in the other actions.
-
-## On-demmand buffers
-
-Another solution is to create these buffers on-demmand, and expand them when reading more data. In this case, it's necessary to have a timeout for reading (keeping the buffer in use) the content. Also, this packet must be kept until it is sent to the destination.
-
-In a public WhatsaApp partial benchmark, there was a RAM ratio of ~15KB per socket.
-
-After implementing it, and benchmarking, a huge improvement in RAM usage was noted when dynamically allocating buffers.
-
-# Benchmarking the relay server
-
-In this repository, there's a project `benchmark`, which simulate clients exchanging simple messages. The mais purpose of this benchmark is to test the maximum number of simultaneous clients, and not bandwidth.
-
-When running, it connects new clients, each sending ~2500 bytes every 1 second. As a benchmark, it records the maximum amount of simultaneous connected users.
-
-A better benchmark would be to also receive the packets, and calculate the latency to deliver these packets.
-
-I recommend to monitor the system resources while running the benchmark using `htop` for CPU and RAM, and `iftop` for network throughput.
-
-## Early results
-
-Using the AWS `t3.medium` instance type, with 2vCPU, 4GB RAM, and no CPU credits left, it made 16158 simultaneous clients.
-
-Using the AWS `c7i.4xlarge` instance type, with 16vCPU, 32GB RAM, it made 28000 simultaneous clients. The RAM usage was only 700MB, the CPU usage was 20% in all 16 cores, and the network throughput reached 500Mbps receiving. The bottleneck in this scenario was the machine running the benchmark, which started getting `cannot assign requested address` errors, and I didn't investigate the problem. Considering the 20% CPU usage, and the connections, a linear projection can be made to estimate the capacity of 140000 active clients in this machine.
-
-# Keeping a connection always active
-
-It's not that easy to keep a TCP connection always active, when the user change networks, is unstable, or suspend the OS.
-
-TODO: Describe better.
 
 # Persistence, and its scalability
 
@@ -677,18 +670,78 @@ It's easy for one client to not be in sync with the other, which can be:
 
 The messages, and files are already resynchronized when an existing client reconnects, but the delivery, and read confirmations should be implemented.
 
-# Limiting the use of the relay server
+# Extending this project
 
-Initially, I implemented a throughput, and connection limit in the application, but the Linux network stack has more efficient ways of doing this:
+This project is open source, and contribution is much appreciated both in the code itself, and the documentation and examples. This project is not activelly maintained, and it was intended more as a PoC and to document this process, than to be used in production, so keep in mind that if you want to use this project, a more in-depth analysis of the algorithms and the encryption must be done.
 
-- iptables connlimit module to limit the amount of open TCP connections per IP
-- [tc module](https://lartc.org/howto/lartc.qdisc.classful.html) to implement traffic shaping limiting the throughput for each IP
+At the end, I decided to document in details this project, because even being simple, it served its purpose really well: to teach me things I didn't know about encryption, synchronization and interconnecting users.
 
-Also, this can be implemented in the router, or load balancer
+## Friend's friends
 
-# Idea for scaling even more the relay server
+Forwarding a friend handshake. In this case, we can ask B to handshake A with C, and we don't need to have a private key. This would be useful for groups. It should be saved that C was added through B.
 
-- Have multiple edge servers, that connects directly to the clients
-- Have an internal queue-based routing mechanism to forward the messages
+A --(is friend of)--> B
 
-It should be noted that 2 nodes have to have at least one server in common to be able to communicate.
+B --(is friend of)--> C
+
+A --> B --> C
+
+## Group chats
+
+There is no `User -> Server -> All Users`. Rather, all the users must have as friends all the other users, and there should be the possibility for a node to forward a message received from a user in a group to its friends.
+
+Probably, the user must have at least another friend in the group, from which the messages will be forwarded. In that case, there must be a note indicating that the friend forwarded that message as being sent from another user in the group, reducing the trust level.
+
+[](https://medium.com/@asierr/implementing-end-to-end-encryption-for-group-chats-f068577c53de#:~:text=Messages%20sent%20to%20the%20group,it%20to%20read%20the%20message.)
+
+[](https://security.stackexchange.com/questions/126768/which-protocols-exist-for-end-to-end-encrypted-group-chat)
+
+[](https://www.quora.com/How-does-group-messaging-work-with-end-to-end-encryption)
+
+[](https://en.wikipedia.org/wiki/Signal_%28software%29#Implementations)
+
+[](https://security.stackexchange.com/questions/119633/how-does-whatsapps-new-group-chat-protocol-work-and-what-security-properties-do/119656#119656)
+
+[IMPORTANT](https://www.whatsapp.com/security/WhatsApp-Security-Whitepaper.pdf)
+
+[](https://messaginglayersecurity.rocks/)
+
+[](https://serverfault.com/a/10919)
+
+[](https://www.sobyte.net/post/2021-09/golang-netpoll/)
+
+[](https://gist.github.com/Lisprez/7b52f4a55cd0fcf96324b5f02b865e54)
+
+[](https://en.wikipedia.org/wiki/Epoll)
+
+[](https://www.youtube.com/watch?v=_3LpJ6I-tzc)
+
+[](https://gist.github.com/Lisprez/7b52f4a55cd0fcf96324b5f02b865e54)
+
+[Signal protocol, used by WhatsApp](https://en.wikipedia.org/wiki/Signal_Protocol)
+
+To scale more the relay server (programming language independent), we would need to use the [Linux epoll](https://man7.org/linux/man-pages/man7/epoll.7.html), and handle file descriptors and syscalls directly.
+
+Apparently, the group chat implementation would be a multiple one-to-one chat, in which each client have a key pair with each other user.
+
+Even having multiple one-to-one chat, the message forwarding between trusted users in the group would still be recommended, otherwise we would need the sender online to receive the message, making the message consistency in the group a mess. When a message is forwarded through a trusted user, this can be flagged in the message, while we don't receive the message from the original sender.
+
+## Offline messages and queueing in the relay server
+
+Currently, the relay server doesn't have a queue, neither does it save messages if the destination node is offline. This is also a good feature to have.
+
+## Confirm when accepting a friend request
+
+Currently, when a user receives a friend request from one which have the same pre-shared key, the request is automatically accepted, and the user is instantly added to the friend list. It's a great update to prompt the receiving user to accept or deny the request. Also, there could be a "allow friend requests" state, and the pre-shared could be tied to a specific username.
+
+## Username uniqueness
+
+When using the "distributed" architectured of this project, we cannot rely on the uniqueness of the usernames. The relay server is prepared to work with duplicate usernames, but the nodes are not tested to that case.
+
+## Support for multiple relays
+
+- One client should always be connected to multiple relay servers
+- There should be a confirmation to establish a single client-to-client connection
+- There should be a routing algorithm to connect one client to the relay server that has the other client connected to
+
+TODO: Describe better
