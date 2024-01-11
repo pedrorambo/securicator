@@ -21,10 +21,11 @@ function AddFriend() {
     <div className="add-friend-container">
       {showConfirmation ? (
         <div className="add-friend-form">
-          <p>
-            Handshake requested. If the pre-shared key is correct, and the user
-            is running the application, soon the process will be complete. If
-            not, you can send another request.
+          <h3>Friend request sent</h3>
+          <p className="m-0">
+            The contact will appear in your friend list if the pre-shared key is
+            correct and the user is online. If it doesn't, you have the option
+            to send another request.
           </p>
 
           <button
@@ -46,15 +47,25 @@ function AddFriend() {
             onSend();
           }}
         >
-          <input
-            type="text"
-            placeholder="Username"
-            maxLength={32}
-            autoFocus
-            value={username}
-            onChange={(e) => setUsername(e.target.value || "")}
-          />
-          <button type="submit">Add friend</button>
+          <div>
+            <h3>Add friend</h3>
+            <p>
+              You can add friends with their username, provided both of you have
+              the same pre-shared key.
+            </p>
+          </div>
+
+          <div className="d-flex gap-1">
+            <input
+              type="text"
+              maxLength={32}
+              placeholder="Username"
+              autoFocus
+              value={username}
+              onChange={(e) => setUsername(e.target.value || "")}
+            />
+            <button type="submit">Add friend</button>
+          </div>
         </form>
       )}
     </div>

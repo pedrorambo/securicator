@@ -37,29 +37,36 @@ function Settings() {
           onSend();
         }}
       >
-        <label htmlFor="bio">Bio</label>
-        <input
-          type="text"
-          id="bio"
-          placeholder="Bio"
-          autoFocus
-          maxLength={128}
-          value={bio}
-          onChange={(e) => setBio(e.target.value || "")}
-        />
+        <h3>Settings</h3>
+        <div>
+          <label htmlFor="bio">
+            About me (will be shown to all your friends)
+          </label>
+          <input
+            type="text"
+            id="bio"
+            placeholder="About me"
+            autoFocus
+            maxLength={128}
+            value={bio}
+            onChange={(e) => setBio(e.target.value || "")}
+          />
+        </div>
         <hr style={{ width: "100%" }} />
-        <label htmlFor="secret">Pre-shared key</label>
-        <input
-          type="password"
-          id="secret"
-          placeholder="Secret"
-          autoFocus
-          maxLength={128}
-          minLength={8}
-          required
-          value={presharedKey}
-          onChange={(e) => setPresharedKey(e.target.value || "")}
-        />
+        <div>
+          <label htmlFor="secret">Pre-shared key</label>
+          <input
+            type="password"
+            id="secret"
+            placeholder="Secret"
+            autoFocus
+            maxLength={128}
+            minLength={8}
+            required
+            value={presharedKey}
+            onChange={(e) => setPresharedKey(e.target.value || "")}
+          />
+        </div>
         <div className="checkbox-container">
           <input
             id="handshakeEnabled"
@@ -69,7 +76,9 @@ function Settings() {
             onChange={(e) => setHandshakeEnabled((old) => !old)}
           />
           <label htmlFor="handshakeEnabled">
-            {handshakeEnabled ? "Accepting handshakes" : "Ignoring handshakes"}
+            {handshakeEnabled
+              ? "Accepting friend requests"
+              : "Ignoring friend requests"}
           </label>
         </div>
         <button type="submit">Save</button>
