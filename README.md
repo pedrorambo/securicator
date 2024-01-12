@@ -222,6 +222,42 @@ In details, the actual content that needs to be encrypted is first encrypted wit
 
 This is the method of encryption actually used in this application. Using this, the content length is virtually unlimited, while the process is still secure.
 
+## How secure is the current encryption architecture
+
+Starting this project, I chose to following algorithms:
+
+- (Asymmetric) RSA 2048
+- (Symmetric) AES CBC with 32-byte keys
+- (Signature) RSASSA-PKCS1-v1_5
+
+After the first version of this project, I reviewed the encryption methods. For symmetric, the AES used is, in general, a good option. For asymmetric encryption, there's better options.
+
+I would like to reiterate that the encryption methods used by this application can be changed, and it would be good to match the methods used by production applications. Independend of the encryption is the underlying message relaying, and trust system.
+
+### Replacement for the RSA 2048
+
+Currently, a "drop-in" replacement for the asymmetric encryption is the ed25519. The key strength (which should not be the only determining factor), [its breaking difficulty is similar to a RSA with ~3000-bit keys](https://ed25519.cr.yp.to/), the key sizes are smaller (public keys consume 32 bytes), which is important for the routing architecture of the relay servers, and is more performant (in general) [for signing](https://blog.cloudflare.com/nist-post-quantum-surprise#digital-signatures), and for key generation (in a simple test I wrote in python, Ed25519 is 120000 times faster than RSA 2048 for generating new key pairs, although I don't trust this test too much).
+
+You can run the command `openssl speed rsa1024 rsa2048 rsa4096 ecdsap256 ed25519` in your machine to benchmark the signing, and verifying speeds for the mos common algorithms. Running in my machine, I get the following results:
+
+| Algorithm | Sign duration | Verify duration | Signatures per second | Verifications per second |
+| --------- | ------------- | --------------- | --------------------- | ------------------------ |
+| RSA 2048  | 558μs         | 14μs            | 11125.4               | 247057.9                 |
+| Ed25519   | 29μs          | 83μs            | 33363.1               | 11960                    |
+
+## A better architecture
+
+A (probably) better architecture would be the same implemented by the major end-to-end encrypted messaging apps, but that would require rearchitecting this application completly, and create bindings for existing native encryption methods available in the operating system the the encryption library used doens't support yet.
+
+In short, most apps today replace a randomly generated symmetric key with a key derivated from exchanged keys and signatures, uses multiple keys for different purposes (some being temporary), and never exchange the symmetric key. The fact that this application does generate a symmetric key, and exchange it doesn't make it insecure, but it's not as safe as the methods used by current main stream applications. One of the advantages of the modern methods of end-to-end encryption is the [Forward secrecy](https://en.wikipedia.org/wiki/Forward_secrecy), which is the ability to not reveal previously exchanged information if some keys or passwords are compromised.
+
+This section could be a whole article by itself, so I'll leave some really good readings regarding end-to-end encryption:
+
+- [Signal Technical Information](https://www.signal.org/docs/): Includes all the algorithms used for key enchange, signing, and encryption used by Signal, and other apps.
+- [WhatsApp Encryption Overview (Technical white paper)](https://www.whatsapp.com/security/WhatsApp-Security-Whitepaper.pdf): Detailed encryption methods (Signal Protocol) used by WhatsApp.
+- [Practical-Cryptography-for-Developers-Book](https://github.com/nakov/Practical-Cryptography-for-Developers-Book): The title speaks for itself, and it's the very next book I'm gonna read.
+- [What happens in a TLS handshake? | SSL handshake (by CloudFlare)](https://www.cloudflare.com/learning/ssl/what-happens-in-a-tls-handshake): This one is a little off-topic, but includes the concepts of key exchange, and symmetric key derivation.
+
 # Connecting multiple clients
 
 As mentioned before, this application was architectured to not depend the most on the interconnection method between users. Having a secure encryption, it's not a big security risk if the messages are intercepted.
@@ -743,5 +779,9 @@ When using the "distributed" architectured of this project, we cannot rely on th
 - One client should always be connected to multiple relay servers
 - There should be a confirmation to establish a single client-to-client connection
 - There should be a routing algorithm to connect one client to the relay server that has the other client connected to
+
+## Longer lived symmetric keys
+
+Currently, every message uses a new symmetric key. Maybe there could be a 1-month session that uses the same symmetric key. I don't know the performance impact of decrypting each symmetric key using RSA, nor the security implications of keeping a symmetric key for one month.
 
 TODO: Describe better
