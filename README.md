@@ -1,13 +1,14 @@
-Securicator is a **distributed end-to-end encrypted** messaging app, including file transfer, deliver and read confirmation, persistence, and securely adding new friends.
-This is an experimental project, developed to learn about networking, and encryption. Because of that, I documented the architecture in details, as well as the main challanges I had while devloping it, and its solutions.
+Securicator is a **distributed end-to-end encrypted messaging app**. It includes features such as file transfer, delivery and read confirmation, persistence, and the secure addition of new friends.
 
-If you plan to use this in production (to send confidential messages), keep in mind that a thorough security analysis is requried, and there is a "Security checklist" section to help you start.
+This is an experimental project, developed for learning about networking and encryption. Thus, I've documented the architecture in detail, along with the main challenges faced during development and their respective solutions.
+
+If you're considering using this in a production environment (e.g., for sending confidential messages), remember that a thorough security analysis is necessary. To assist you, there's a "Security Checklist" section available in this document.
 
 ![Three terminals: Node A exchanging messages with Node B, the relay server forwarding the messages, and Node B exchanging messages with Node A](assets/hero.gif)
 
 # Overview
 
-Even it looks simple to exchange message sand files between two clients, there's a lot involved in the process. This section presents a summary of the main modules of this project. Later in this document, there are detailed versions of the topics mentioned in this section.
+Though it may seem simple to exchange messages and files between two clients, the process involves quite a bit. This section provides a summary of the primary modules in this project. Detailed explanations of these topics can be found later in this document.
 
 ## Handshaking
 
@@ -283,76 +284,13 @@ One method of peer-to-peer connection, which to the router doesn't appear to be 
 - [UDP Hole Punching in TomP2P for NAT Traversal](https://files.ifi.uzh.ch/CSG/staff/bocek/extern/theses/BA-Jonas-Wagner.pdf)
 - [Peer-to-Peer Communication Across Network Address Translators](https://bford.info/pub/net/p2pnat/)
 
-#### How does the UDP hole-puncing works
-
-##### Network Address Translation table
-
-Due to the limited amount of IPv4 addresses (around 4 billions, whish is way less than the devices connected to the internet), most IPv4 routers (the one used at your home and at your office included) uses Network Address Translation (NAT) to allow multiple clients in a local network to use one single public IP.
-
-This mappnig works as following:
-
-1. Your computer with the IP 192.168.100.20 makes a DNS UDP request to Google's DNS server with the IP 8.8.8.8.
-2. Being DNS, the destination port is 53, and the source port is chosen (most often randomly) by your operating system.
-3. Before forwarding the packet to ther internet, your router changes the source address from 192.168.100.20 to the public IP of your home or office, for example 199.191.240.57.
-4. To know how to send the response back to your computer, the router saves the information necessary to map the response to your computer. An example of that table is shown below:
-
-| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
-| 192.168.100.20 | 98232             | 199.191.240.57  | 98232                  | 8.8.8.8     | 53          |
-
-5. Now the router knows that when receiving a packet from Google's IP 8.8.8.8 with the source port 53, and the destination port 98232, it should forward the packet to your computer.
-
-![Diagram exemplifying network packets being NATed between a client and a server](assets/nat.png)
-
-That's the basic working of NAT. If we were not using NAT in this case, there could be two cenarios:
-
-1. Your computer would be connected in bridge mode with your router, having the IP 199.191.240.57 and receiving all requests from any origin. That's actually possible to implement. The only advantage is that there could be only your computer connected to your network.
-
-2. Your computer would send the packet to Google, but the response would be delivered to your router, and it wouldn't know what to do with the packet (it wouldn't know if it should forward or to who forward to, or if it should accept to itself), and probably it would be discarded.
-
-In most enterprise routers, it's possible to view the actual connection and NAT table, and identify the translations.
-
-##### Using the NAT table for other purposes
-
-NAT introduces a problem, whose side effect is a great security feature: only hosts with who you started a connection could respond to your computer. In other words, no server can by itself send packets to your computer. Let's return to our NAT table created in the previous section.
-
-| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
-| 192.168.100.20 | 98232             | 199.191.240.57  | 98232                  | 8.8.8.8     | 53          |
-
-Now, imagine that your friend's IP 3.201.165.30 wants to connect to your computer 192.168.100.20 at port 9000. First, your computer has a private IP, and that private IP can't be used as a destination IP to a remote networn. For that, your friend must use your public IP 199.191.240.57. Now, when your friend sends a packet to your public IP with the destination port 9000, the router will look at the NAT table for the translated source port 9000, and will not find any registry. Due to the registry not being found, it will reject the packet. That behaviour (default to most routers) makes harder for any user to communicate with any other user on the internet.
-
-This is a good feature, because an old operating system publicly accessible to the internet is incredibly dangerous. Using NAT, no unwanted traffic from the internet will reach the old operating system.
-
-![Diagram exemplifying the UDP hole-punching process between two nodes in different NATed networks](assets/udp-hole-punching.png)
-
-Note: Most routers that have NAT also allows port mapping configuration, in which you tell the router to always redirect a port to a specific internal IP, but that won't be considered because it's impractical to configure the router of each place you want to use this software, or in routers you don't control. Also, the port mapping is not a feature for users behind a [CGNAT](https://en.wikipedia.org/wiki/Carrier-grade_NAT), nor for users using mobile phone networks.
-
-To achieve peer-to-peer communication, we can take advantage of that port mapping and force it to accept connection from other host. For example, you can coordinate beforehand with the other host (Host B) that you're gonna use the destination port 9000, and the Host A the destination port 9001. Now, your computer will make a request, which will create a registry in the NAT table of your router (actually, it will also create registries in the CGNAT or mobile network router). After that, your router's table will look like the following:
-
-| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
-| 192.168.100.20 | 9000              | 199.191.240.57  | 90001                  | 8.8.8.8     | 9001        |
-
-After that, Host B won't receive this packet, but at least your router will have that mapping alive for about 30 seconds. Knowing that table, it's clear that if the host 199.191.240.57 sends a packet to your public IP with the destination port 90001, and the source port 9000, that packet will be redirected to your computer with the IP 192.168.100.20. In fact, that will actually work in most cases, and if you do this in both sides, you have a two-way peer-to-peer communication using UDP hole-punching.
-
-##### Rendezvous server
+#### Rendezvous server
 
 For the UDP hole-punching to work, it's necessary to both the clients to know which destination ports they will use. It's not practical to guess or use all possible ports. For that, a so called Rendezvous server is necessary. The server serves only the purpose of choosing two random ports and informing them to the clients for them to use as destination ports for the hole-punching. During the labs, we implemented a Rendezvous server, and the sources can be found in the git history.
 
-##### Limitations
+#### Limitations
 
 Previoulsy I mentioned that this will actually work in most cases because that will only work for routers with specific configuration, one being the Symmetric NAT, which is the one examplified previously. It's called symmetric because the source port your computer specified is the same one as the source port forwarded by your router to the internet (called the Translated source port).
-
-| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
-| 192.168.100.20 | 9000              | 199.191.240.57  | 90001                  | 8.8.8.8     | 9001        |
-
-Knowing the translated source port is essetial for UDP hole-punching. In a non-symmetric NAT, the router will use a different translated source port as the one your computer specified, and that will make the peer-to-peer connection not work.
-
-| Local IPV4     | Local source port | Translated IPV4 | Translated source port | Remote IPv4 | Remote port |
-| -------------- | ----------------- | --------------- | ---------------------- | ----------- | ----------- |
-| 192.168.100.20 | 9000              | 199.191.240.57  | 97238                  | 8.8.8.8     | 9001        |
 
 That's one case in which your router won't allow the connection to work, but if the router has a demilitarized zone (when conducting the lab, my router had one, and that made the connection to not occur), even with symmetric NAT, the connection won't always work. That's because with the DMZ, any packet not mathing the NAT table is routed to the demilitarized zone IP, and the router will save that as a new mapping. Any new connection from your computer to the destination will force the router to choose a new port, since that port is already present in the NAT table. Also, if the timeout of that NAT table is too short, or it has some other specific configuration, the method won't work.
 
@@ -390,7 +328,7 @@ Close to what happens with the Onion network, for example, is that your ISP and 
 
 ### How does the existing apps handle exchanging messages between devices?
 
-Aparently Skype uses or used P2P connections to transmit call data and files, specifically UDP hole-punching.
+Aparently Skype uses/used P2P connections to transmit call data and files, specifically UDP hole-punching.
 
 Acording to the discussion in the thread [Is whatsapp peer to peer like skype? If yes, How am i able to send offline message to other people? If not, won't it be better to make it peer to peer since it will remove server connection overhead?](https://www.quora.com/Is-whatsapp-peer-to-peer-like-skype-If-yes-How-am-i-able-to-send-offline-message-to-other-people-If-not-wont-it-be-better-to-make-it-peer-to-peer-since-it-will-remove-server-connection-overhead) on Quora, WhatsApp appears to use a version of XMPP, which forwards the messages to central servers, so they can queue, store, and forward the messages to other clients. Aparently, that also happens for file transfer.
 
@@ -782,6 +720,14 @@ When using the "distributed" architectured of this project, we cannot rely on th
 
 ## Longer lived symmetric keys
 
-Currently, every message uses a new symmetric key. Maybe there could be a 1-month session that uses the same symmetric key. I don't know the performance impact of decrypting each symmetric key using RSA, nor the security implications of keeping a symmetric key for one month.
+Currently, every message uses a new symmetric key. Maybe there could be a 1 month session that uses the same symmetric key. I don't know the performance impact of decrypting each symmetric key using RSA, nor the security implications of keeping a symmetric key for one month.
 
-TODO: Describe better
+## Complete web client
+
+The current web browsers support all the necessary features to run this applications, such as:
+
+- [WebSocket API (Network I/O)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+- [Web Crypto API (Symmetric and asymmetric encryption)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API)
+- [IndexedDB API (Storage)](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
+
+The ideal solution is to use a native client, but a web client could facilitate the use of the application for new users, since it's not necessary to install anything on the machine. All the data would be saved in the browser, but the application could export backups to the disk as requested by the user.
