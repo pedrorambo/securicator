@@ -1,4 +1,4 @@
-Securicator is a **distributed end-to-end encrypted messaging app**. It includes features such as file transfer, delivery and read confirmation, persistence, and the secure addition of new friends.
+Securicator is a **decentralized and distributed end-to-end encrypted messaging app**. It includes features such as file transfer, delivery and read confirmation, persistence, and the secure addition of new friends.
 
 This is an experimental project, developed for learning about networking and encryption. Thus, I've documented the architecture in detail, along with the main challenges faced during development and their respective solutions.
 
