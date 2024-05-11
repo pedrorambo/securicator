@@ -397,6 +397,20 @@
       .side-footer {
         padding-top: 1rem;
       }
+
+      .radio-item {
+        display: block;
+      }
+
+      .radio-item input {
+        width: fit-content;
+        margin-right: 0.25rem;
+        display: inline-block;
+      }
+
+      .radio-item label {
+        display: inline-block;
+      }
     </style>
   </head>
   <body>
@@ -426,6 +440,23 @@
         >
           <label for="its-public-key">Public key</label>
           <input type="text" id="its-public-key" />
+          <button type="submit">Submit</button>
+        </form>
+
+        <hr />
+
+        <form
+          onsubmit="event.preventDefault(); onLoadProfile();"
+          class="generic-form"
+          id="load-profile-form"
+        >
+          <div id="profiles"></div>
+          <label for="its-public-key">Password</label>
+          <input
+            type="password"
+            id="profile-password"
+            placeholder="Encryption password"
+          />
           <button type="submit">Submit</button>
         </form>
 

@@ -91,9 +91,89 @@ class Connectivity {
   }
 }
 
+class Profile {
+  static getProfiles() {
+    const profiles = window.localStorage.getItem("profiles");
+    if (!profiles) return [];
+    return JSON.parse(profiles);
+  }
+
+  static getProfileById(id) {
+    const profiles = Profile.getProfiles();
+    return profiles.find((p) => p.id === id);
+  }
+
+  static _getNextProfileId() {
+    const profiles = Profile.getProfiles();
+    const ids = profiles.map((p) => p.id);
+    if (!ids.length) return 1;
+    return Math.max(...ids) + 1;
+  }
+
+  static saveProfiles(profiles) {
+    window.localStorage.setItem("profiles", JSON.stringify(profiles));
+  }
+
+  static async newProfile(password) {
+    const symmetricKey = await generateSymmetricKey();
+    const encryptedSymmetricKey = await symmetricEncrypt(
+      symmetricKey,
+      password
+    );
+
+    const prof = {
+      id: Profile._getNextProfileId(),
+      encryptedSymmetricKey: encryptedSymmetricKey.encrypted,
+      encryptedSymmetricKeyIv: encryptedSymmetricKey.iv,
+    };
+
+    const profiles = Profile.getProfiles();
+    profiles.push(prof);
+    Profile.saveProfiles(profiles);
+
+    return {
+      ...prof,
+      symmetricKey,
+    };
+  }
+
+  static async loadProfile(profileId, password) {
+    const profile = Profile.getProfileById(profileId);
+    if (!profile) throw new Error(`Profile with id ${profileId} not found`);
+    const symmetricKey = await symmetricDecrypt(
+      profile.encryptedSymmetricKey,
+      password,
+      profile.encryptedSymmetricKeyIv
+    );
+    return {
+      ...profile,
+      symmetricKey,
+    };
+  }
+}
+
 class AppPersistence {
-  static async load() {
-    const content = window.localStorage.getItem("sec2-persistence");
+  constructor(profile) {
+    this.profile = profile;
+  }
+
+  async load() {
+    const encryptedContent = window.localStorage.getItem(
+      `profile-${this.profile.id}`
+    );
+    if (!encryptedContent) {
+      const { publicKey, privateKey } = await generateKeypair();
+      const app = new App(privateKey, publicKey, this);
+      app.persistence = this;
+      await this.save(app);
+      return app;
+    }
+    const [iv, encrypted] = encryptedContent.split(" ");
+    const content = await symmetricDecrypt(
+      encrypted,
+      this.profile.symmetricKey,
+      iv
+    );
     if (content) {
       const {
         globalPrivateKey,
@@ -102,7 +182,7 @@ class AppPersistence {
         displayName,
         envelopes,
       } = JSON.parse(content);
-      const app = new App(globalPrivateKey, globalPublicKey);
+      const app = new App(globalPrivateKey, globalPublicKey, this);
       app.contacts = contacts;
       app.displayName = displayName || "User";
       app.envelopes =
@@ -113,15 +193,10 @@ class AppPersistence {
           readAt: e.readAt ? new Date(e.readAt) : null,
         })) || [];
       return app;
-    } else {
-      const { publicKey, privateKey } = await generateKeypair();
-      const app = new App(privateKey, publicKey);
-      await this.save(app);
-      return app;
     }
   }
 
-  static async save(app) {
+  async save(app) {
     const content = {
       globalPrivateKey: app.globalPrivateKey,
       globalPublicKey: app.globalPublicKey,
@@ -138,12 +213,19 @@ class AppPersistence {
           }))
         : [],
     };
-    window.localStorage.setItem("sec2-persistence", JSON.stringify(content));
+    const encryptedContent = await symmetricEncrypt(
+      JSON.stringify(content),
+      this.profile.symmetricKey
+    );
+    window.localStorage.setItem(
+      `profile-${this.profile.id}`,
+      `${encryptedContent.iv} ${encryptedContent.encrypted}`
+    );
   }
 }
 
 class App {
-  constructor(globalPrivateKey, globalPublicKey) {
+  constructor(globalPrivateKey, globalPublicKey, persistence) {
     this.globalPrivateKey = globalPrivateKey;
     this.globalPublicKey = globalPublicKey;
     this.contactHandshakeSessions = [];
@@ -152,6 +234,7 @@ class App {
     this.connectivity = new Connectivity(globalPublicKey);
     this.connectivity.onMessage(this.onMessage.bind(this));
     this.displayName = "User";
+    this.persistence = persistence;
 
     setInterval(() => {
       this.sendContactHeartbeats();
@@ -191,7 +274,7 @@ class App {
     this.contactHandshakeSessions = this.contactHandshakeSessions.filter(
       (c) => c.handshakeId !== handshakeId
     );
-    await AppPersistence.save(this);
+    await this.persistence.save(this);
   }
 
   async _handleContactMessage(contactGlobalPublicKey, rawContent) {
@@ -234,14 +317,13 @@ class App {
     );
     contact.lastSeenAt = date;
     await this._resendUndeliveredEnvelopesToContact(contactGlobalPublicKey);
-    await AppPersistence.save(app);
+    await this.persistence.save(this);
   }
 
   async _resendUndeliveredEnvelopesToContact(contactGlobalPublicKey) {
     const pendingEnvelopes = this.envelopes.filter(
       (e) => e.to === contactGlobalPublicKey && !e.deliveredAt
     );
-    console.log(pendingEnvelopes);
     for (const envelope of pendingEnvelopes) {
       await this.sendToContact(
         contactGlobalPublicKey,
@@ -255,7 +337,7 @@ class App {
       (c) => c.itsGlobalPublicKey === contactGlobalPublicKey
     );
     contact.displayName = content;
-    await AppPersistence.save(app);
+    await this.persistence.save(this);
   }
 
   async _handleEnvelopeReceived(contactGlobalPublicKey, content) {
@@ -286,7 +368,7 @@ class App {
       );
     } else {
       this.envelopes.push(envelope);
-      await AppPersistence.save(this);
+      await this.persistence.save(this);
       await this.sendToContact(
         contactGlobalPublicKey,
         `ENVELOPE_DELIVERED ${parsed.id} ${deliveredAt.toISOString()}`
@@ -298,7 +380,7 @@ class App {
     const envelope = this.envelopes.find((e) => e.id === envelopeId);
     const now = new Date();
     envelope.readAt = now;
-    await AppPersistence.save(this);
+    await this.persistence.save(this);
     await this.sendToContact(
       envelope.from,
       `ENVELOPE_READ ${envelope.id} ${now.toISOString()}`
@@ -313,7 +395,7 @@ class App {
     const foundEnvelope = this.envelopes.find((e) => e.id === envelopeId);
     if (foundEnvelope.deliveredAt) return;
     foundEnvelope.deliveredAt = new Date(deliveredAt);
-    await AppPersistence.save(this);
+    await this.persistence.save(this);
   }
 
   async _handleEnvelopeRead(contactGlobalPublicKey, content) {
@@ -326,7 +408,7 @@ class App {
     if (foundEnvelope.to !== contactGlobalPublicKey) return;
     if (foundEnvelope.readAt) return;
     foundEnvelope.readAt = new Date(readAt);
-    await AppPersistence.save(this);
+    await this.persistence.save(this);
   }
 
   async sendContactHeartbeats() {
@@ -388,7 +470,7 @@ class App {
     await this.connectivity.send(
       `${this.globalPublicKey} ${contactGlobalPublicKey} HANDSHAKE_CONFIRM ${handshakeId} ${encryptedSymmetricKey} ${encryptedPublicKey.iv} ${encryptedPublicKey.encrypted}`
     );
-    await AppPersistence.save(this);
+    await this.persistence.save(this);
   }
 
   async _handleHandshakeCreated(contactGlobalPublicKey, content) {
@@ -448,7 +530,7 @@ class App {
       contactGlobalPublicKey,
       `ENVELOPE ${JSON.stringify(envelope)}`
     );
-    await AppPersistence.save(this);
+    await this.persistence.save(this);
   }
 
   async sendToContact(contactGlobalPublicKey, content) {
@@ -498,7 +580,7 @@ class App {
 
   async setDisplayName(displayName) {
     this.displayName = displayName;
-    await AppPersistence.save(this);
+    await this.persistence.save(this);
   }
 
   async createHandshakeSession(contactGlobalPublicKey) {
@@ -727,10 +809,6 @@ async function asymmetricDecrypt(content, key) {
 
 let app = null;
 
-async function main() {
-  app = await AppPersistence.load();
-}
-
 async function onHandshake() {
   const itsPublicKey = document.getElementById("its-public-key").value;
   await app.createHandshakeSession(itsPublicKey);
@@ -753,6 +831,67 @@ async function onSendMessage() {
   if (!message) return;
   await app.sendMessage(selectedContactPublicKey, message);
   document.getElementById("message").value = "";
+}
+
+async function importSymmetricKeyFromPassword(password) {
+  let encodedPassword = new TextEncoder().encode(password);
+  if (encodedPassword.length > 32) {
+    encodedPassword = encodedPassword.slice(0, 32);
+  } else {
+    if (encodedPassword.length !== 16) {
+      if (encodedPassword.length < 16) {
+        const diff = 16 - encodedPassword.length;
+        encodedPassword = new Uint8Array([
+          ...encodedPassword,
+          ...new Uint8Array(diff).fill(0),
+        ]);
+      } else {
+        const diff = 32 - encodedPassword.length;
+        encodedPassword = new Uint8Array([
+          ...encodedPassword,
+          ...new Uint8Array(diff).fill(0),
+        ]);
+      }
+    }
+  }
+  const key = await window.crypto.subtle.importKey(
+    "raw",
+    encodedPassword,
+    {
+      name: "AES-CBC",
+      length: 256,
+    },
+    true,
+    ["encrypt", "decrypt"]
+  );
+  return symmetricKeyToString(key);
+}
+
+async function onLoadProfile() {
+  const newName = document.getElementById("profile-password").value;
+  const selectedProfileId = document.querySelector(
+    'input[name="profile-index"]'
+  ).value;
+  if (selectedProfileId !== "new") {
+    const profileId = parseInt(selectedProfileId);
+    const key = await importSymmetricKeyFromPassword(newName);
+    const profile = await Profile.loadProfile(profileId, key);
+    const appPersistence = new AppPersistence(profile);
+    app = await appPersistence.load();
+    window.sessionStorage.setItem(
+      "current-profile",
+      JSON.stringify({ profileId, key })
+    );
+  } else {
+    const key = await importSymmetricKeyFromPassword(newName);
+    const profile = await Profile.newProfile(key);
+    const appPersistence = new AppPersistence(profile);
+    app = await appPersistence.load();
+    window.sessionStorage.setItem(
+      "current-profile",
+      JSON.stringify({ profileId: profile.id, key })
+    );
+  }
 }
 
 setInterval(() => {
@@ -869,4 +1008,42 @@ function changeFavicon(src) {
   document.head.appendChild(link);
 }
 
-main().catch((error) => console.error(error));
+document.addEventListener("DOMContentLoaded", () => {
+  const currentProfile = window.sessionStorage.getItem("current-profile");
+  if (currentProfile) {
+    const parsed = JSON.parse(currentProfile);
+    Profile.loadProfile(parsed.profileId, parsed.key).then((profile) => {
+      const appPersistence = new AppPersistence(profile);
+      appPersistence.load().then((newApp) => {
+        app = newApp;
+      });
+    });
+  }
+
+  document.getElementById("profiles").innerHTML =
+    Profile.getProfiles()
+      .map(
+        (p) => `
+<div class="radio-item">
+<input
+type="radio"
+name="profile-index"
+value="${p.id}"
+id="profile-${p.id}"
+/>
+<label for="profile-${p.id}">Profile #${p.id}</label>
+</div>
+`
+      )
+      .join("") +
+    `
+    <div class="radio-item">
+    <input
+      type="radio"
+      name="profile-index"
+      value="new"
+      id="profile-new"
+    />
+    <label for="profile-new">New profile</label>
+  </div>`;
+});
