@@ -181,10 +181,12 @@ class AppPersistence {
         contacts,
         displayName,
         envelopes,
+        groups,
       } = JSON.parse(content);
       const app = new App(globalPrivateKey, globalPublicKey, this);
       app.contacts = contacts;
       app.displayName = displayName || "User";
+      app.groups = groups || [];
       app.envelopes =
         envelopes.map((e) => ({
           ...e,
@@ -212,6 +214,7 @@ class AppPersistence {
             readAt: e.readAt ? e.readAt.toISOString() : null,
           }))
         : [],
+      groups: app.groups || [],
     };
     const encryptedContent = await symmetricEncrypt(
       JSON.stringify(content),
@@ -234,6 +237,7 @@ class App {
     this.connectivity = new Connectivity(globalPublicKey);
     this.connectivity.onMessage(this.onMessage.bind(this));
     this.displayName = "User";
+    this.groups = [];
     this.persistence = persistence;
 
     setInterval(() => {
@@ -284,7 +288,7 @@ class App {
     );
     const symmetricKey = await asymmetricDecrypt(
       encryptedSymmetricKey,
-      contact.myPrivateKey
+      app.globalPrivateKey
     );
     const content = await symmetricDecrypt(encrypted, symmetricKey, iv);
     const [verb, ...rest] = content.split(" ");
@@ -304,6 +308,9 @@ class App {
         break;
       case "ENVELOPE_READ":
         this._handleEnvelopeRead(contactGlobalPublicKey, innerContent);
+        break;
+      case "GROUP_INFO":
+        this._handleGroupInfo(contactGlobalPublicKey, innerContent);
         break;
       default:
         console.error("Unknown verb", verb);
@@ -351,7 +358,7 @@ class App {
     const envelope = {
       type: parsed.type,
       from: contactGlobalPublicKey,
-      to: this.globalPublicKey,
+      to: parsed.to || this.globalPublicKey,
       id: parsed.id,
       content: parsed.content,
       createdAt: new Date(parsed.createdAt),
@@ -411,6 +418,29 @@ class App {
     await this.persistence.save(this);
   }
 
+  async _handleGroupInfo(contactGlobalPublicKey, content) {
+    const contact = this.contacts.find(
+      (c) => c.itsGlobalPublicKey === contactGlobalPublicKey
+    );
+    const [groupPublicKey, info] = content.split(" ");
+    const parsedInfo = JSON.parse(info);
+
+    const group = this.groups.find((g) => groupPublicKey === g.globalPublicKey);
+    if (group) {
+      group.adminPublicKey = parsedInfo.adminPublicKey;
+      group.displayName = parsedInfo.displayName;
+      group.contacts = parsedInfo.contacts;
+    } else {
+      this.groups.push({
+        globalPublicKey: groupPublicKey,
+        displayName: parsedInfo.displayName,
+        contacts: parsedInfo.contacts,
+        adminPublicKey: parsedInfo.adminPublicKey,
+      });
+    }
+    await this.persistence.save(this);
+  }
+
   async sendContactHeartbeats() {
     const now = new Date();
     for (const contact of this.contacts) {
@@ -422,6 +452,14 @@ class App {
         contact.itsGlobalPublicKey,
         `DISPLAY_NAME ${this.displayName}`
       );
+    }
+
+    for (const group of this.groups.filter((g) => !!g.globalPrivateKey)) {
+      for (const contact of group.contacts.filter(
+        (c) => c !== this.globalPublicKey
+      )) {
+        await this.broadcastGroupToContact(group.globalPublicKey, contact);
+      }
     }
   }
 
@@ -533,15 +571,50 @@ class App {
     await this.persistence.save(this);
   }
 
-  async sendToContact(contactGlobalPublicKey, content) {
-    const contact = this.contacts.find(
-      (c) => c.itsGlobalPublicKey === contactGlobalPublicKey
+  async sendGroupMessage(groupPublicKey, content) {
+    const foundGroup = this.groups.find(
+      (g) => g.globalPublicKey === groupPublicKey
     );
-    if (!contact) return console.error("Contact not found");
+
+    const envelope = {
+      type: "simple-message",
+      from: this.globalPublicKey,
+      to: foundGroup.globalPublicKey,
+      id: randomUUID(),
+      content,
+      createdAt: new Date(),
+      deliveredAt: null,
+      readAt: null,
+    };
+
+    console.log(envelope);
+
+    this.envelopes.push(envelope);
+    const imAdmin = foundGroup.adminPublicKey === this.globalPublicKey;
+
+    await this.persistence.save(this);
+    if (imAdmin) {
+      for (const contact of foundGroup.contacts.filter(
+        (c) => c !== this.globalPublicKey
+      )) {
+        await this.sendToContact(
+          contact,
+          `ENVELOPE ${JSON.stringify(envelope)}`
+        );
+      }
+    } else {
+      await this.sendToContact(
+        foundGroup.adminPublicKey,
+        `ENVELOPE ${JSON.stringify(envelope)}`
+      );
+    }
+  }
+
+  async sendToContact(contactGlobalPublicKey, content) {
     const symmetricKey = await generateSymmetricKey();
     const encryptedSymmetricKey = await asymmetricEncrypt(
       symmetricKey,
-      contact.itsPublicKey
+      contactGlobalPublicKey
     );
     const encryptedContent = await symmetricEncrypt(content, symmetricKey);
     await this.connectivity.send(
@@ -604,6 +677,43 @@ class App {
     await this.connectivity.send(
       `${this.globalPublicKey} ${contactGlobalPublicKey} HANDSHAKE_CREATED ${handshakeId} ${encryptedSymmetricKey} ${encryptedPublicKey.iv} ${encryptedPublicKey.encrypted}`
     );
+  }
+
+  async createGroup(displayName) {
+    const { publicKey, privateKey } = await generateKeypair();
+    const group = {
+      globalPublicKey: publicKey,
+      globalPrivateKey: privateKey,
+      createdAt: new Date(),
+      displayName: displayName,
+      contacts: [this.globalPublicKey],
+      adminPublicKey: this.globalPublicKey,
+    };
+    this.groups.push(group);
+    await this.persistence.save(this);
+  }
+
+  async broadcastGroupToContact(groupPublicKey, contactGlobalPublicKey) {
+    const group = this.groups.find((g) => g.globalPublicKey === groupPublicKey);
+
+    const groupInfo = {
+      displayName: group.displayName,
+      contacts: group.contacts,
+      adminPublicKey: group.adminPublicKey,
+    };
+
+    // TODO: Sign with group private key
+
+    await this.sendToContact(
+      contactGlobalPublicKey,
+      `GROUP_INFO ${group.globalPublicKey} ${JSON.stringify(groupInfo)}`
+    );
+  }
+
+  async inviteToGroup(groupPublicKey, contactPublicKey) {
+    const group = this.groups.find((g) => g.globalPublicKey === groupPublicKey);
+    group.contacts.push(contactPublicKey);
+    await this.persistence.save(this);
   }
 }
 
@@ -826,10 +936,19 @@ async function onCopyKey() {
 async function onSendMessage() {
   const urlParams = new URLSearchParams(window.location.search);
   const selectedContactPublicKey = decodeURIComponent(urlParams.get("contact"));
+  const selectedGroupPublicKey = decodeURIComponent(urlParams.get("group"));
 
   const message = document.getElementById("message").value.trim();
   if (!message) return;
-  await app.sendMessage(selectedContactPublicKey, message);
+
+  if (selectedContactPublicKey && selectedContactPublicKey !== "null") {
+    await app.sendMessage(selectedContactPublicKey.trim(), message);
+  }
+
+  if (selectedGroupPublicKey && selectedGroupPublicKey !== "null") {
+    await app.sendGroupMessage(selectedGroupPublicKey.trim(), message);
+  }
+
   document.getElementById("message").value = "";
 }
 
@@ -908,7 +1027,7 @@ setInterval(() => {
       );
     }
 
-    document.getElementById("friends").innerHTML = app.contacts
+    const generalContacts = app.contacts
       .map((c) => {
         const isConnected = c.lastSeenAt && new Date() - c.lastSeenAt < 10000;
         const hasUnreadEnvelopes = app.envelopes.some(
@@ -926,21 +1045,45 @@ setInterval(() => {
                 typeof c.lastSeenAt !== "string" &&
                 c.lastSeenAt.toLocaleTimeString()
               }
-        `
+      `
             : "";
 
         return `<li>
-        <a href="?contact=${encodeURIComponent(c.itsGlobalPublicKey)}">
-          <h3 class="${hasUnreadEnvelopes ? "unread" : ""}"><div class="${
+      <a href="?contact=${encodeURIComponent(c.itsGlobalPublicKey)}">
+        <h3 class="${hasUnreadEnvelopes ? "unread" : ""}"><div class="${
           isConnected ? "connected" : "disconnected"
         }"></div> ${c.displayName || c.itsGlobalPublicKey}</h3>
-          <span>
-          ${lastSeenAt}
-          </span>
-        </a>
-        </li>`;
+        <span>
+        ${lastSeenAt}
+        </span>
+      </a>
+      </li>`;
       })
       .join("");
+
+    const groupContacts = app.groups
+      .map((c) => {
+        // const hasUnreadEnvelopes = app.envelopes.some(
+        //   (e) => e.from === c.itsGlobalPublicKey && !e.readAt
+        // );
+
+        return `<li>
+      <a href="?group=${encodeURIComponent(c.globalPublicKey)}">
+        <h3 class=""><div class="${"disconnected"}"></div> ${
+          c.displayName || c.globalPublicKey
+        }</h3>
+        <span>
+        ${c.contacts.length} ${c.contacts.length > 1 ? "contacts" : "contact"}
+        </span>
+      </a>
+      </li>`;
+      })
+      .join("");
+
+    document.getElementById(
+      "friends"
+    ).innerHTML = `${generalContacts}${groupContacts}`;
+
     document.getElementById("handshakes").innerHTML =
       app.contactHandshakeSessions
         .map((c) => `<li>${c.handshakeId}</li>`)
@@ -957,6 +1100,7 @@ setInterval(() => {
     const selectedContactPublicKey = decodeURIComponent(
       urlParams.get("contact")
     );
+    const selectedGroupPublicKey = decodeURIComponent(urlParams.get("group"));
 
     if (selectedContactPublicKey) {
       if (document.hasFocus()) {
@@ -972,12 +1116,13 @@ setInterval(() => {
       }
     }
 
+    const selectedId =
+      !selectedContactPublicKey || selectedContactPublicKey === "null"
+        ? selectedGroupPublicKey
+        : selectedContactPublicKey;
+
     document.querySelector(".messages-box").innerHTML = app.envelopes
-      .filter(
-        (e) =>
-          e.from === selectedContactPublicKey ||
-          e.to === selectedContactPublicKey
-      )
+      .filter((e) => e.from === selectedId || e.to === selectedId)
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(
         (e) => `
