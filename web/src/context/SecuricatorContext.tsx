@@ -87,12 +87,39 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     );
   }
 
+  async function sendUnackedEvents(publicKey: string) {
+    const contactEvents = await db.events
+      .where("toPublicKey")
+      .equals(publicKey)
+      .toArray();
+    for (const event of contactEvents) {
+      await sendToContact(publicKey, `EVENT ${JSON.stringify(event)}`);
+    }
+  }
+
   async function handleEventReceived(event: Event) {
     if (!globalPublicKey) return;
     console.log("EVENT RECEIVED: ", event.type);
     const count = await db.events.where("id").equals(event.id).count();
-    if (count > 0) return;
-    db.events.add(event);
+    const now = new Date();
+    if (count > 0) {
+      await sendToContact(
+        event.fromPublicKey,
+        `ACK_EVENT ${JSON.stringify({
+          id: event.id,
+          acknowledgedAt: now.toISOString(),
+        })}`
+      );
+      return;
+    } else {
+      await sendToContact(
+        event.fromPublicKey,
+        `ACK_EVENT ${JSON.stringify({
+          id: event.id,
+          acknowledgedAt: now.toISOString(),
+        })}`
+      );
+    }
     switch (event.type) {
       case "envelope":
         const envelope = JSON.parse(event.payload);
@@ -119,27 +146,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       case "envelope-delivered":
         handleEnvelopeDelivered(event.fromPublicKey, JSON.parse(event.payload));
         break;
-    }
-  }
-
-  async function handleSyncRequestReceived(
-    publicKey: string,
-    innerContent: string
-  ) {
-    const [count] = innerContent.split(" ");
-    const localCount = await db.events
-      .where("toPublicKey")
-      .equals(publicKey)
-      .count();
-    console.log("SYNC", localCount, count);
-    if (localCount > parseInt(count)) {
-      const contactEvents = await db.events
-        .where("toPublicKey")
-        .equals(publicKey)
-        .toArray();
-      for (const event of contactEvents) {
-        await sendToContact(publicKey, `EVENT ${JSON.stringify(event)}`);
-      }
     }
   }
 
@@ -191,11 +197,19 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         event.createdAt = new Date(event.createdAt);
         handleEventReceived(event);
         break;
-      case "SYNC_REQUEST":
-        handleSyncRequestReceived(publicKey, innerContent);
+      case "ACK_EVENT":
+        const content = JSON.parse(innerContent);
+        await db.events
+          .where({
+            id: content.id,
+          })
+          .delete();
         break;
       case "CONTACT_INFO":
         handleContactInfoReceived(publicKey, innerContent);
+        break;
+      case "HEARTBEAT":
+        sendUnackedEvents(publicKey);
         break;
     }
   }
@@ -366,18 +380,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
             biography,
           })}`
         );
-        db.events
-          .where("toPublicKey")
-          .equals(contact.publicKey)
-          .count()
-          .then((response) => {
-            sendToContact(
-              contact.publicKey,
-              `SYNC_REQUEST ${response} ${new Date().toISOString()}`
-            );
-          });
       }
-    }, 5000);
+    }, 1000);
     return () => {
       clearInterval(interval);
     };
