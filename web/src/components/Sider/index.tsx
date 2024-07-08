@@ -100,7 +100,16 @@ export function Sider() {
             <button
               className="btn btn-text"
               onClick={() => {
-                navigator.clipboard.writeText(globalPublicKey || "");
+                navigator.clipboard
+                  .writeText(globalPublicKey || "")
+                  .catch(console.error);
+                if (navigator.share) {
+                  navigator
+                    .share({
+                      text: globalPublicKey || "",
+                    })
+                    .catch(console.error);
+                }
               }}
             >
               Copy public key
