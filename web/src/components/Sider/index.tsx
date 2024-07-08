@@ -60,7 +60,7 @@ export function Sider() {
                     <div className="connected"></div>{" "}
                     {c.displayName || c.publicKey}
                   </h3>
-                  <span>10/10/1010</span>
+                  <span>{c.biography}</span>
                 </Link>
               </li>
             ))}
