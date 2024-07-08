@@ -1,16 +1,18 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { FC, useMemo, useState } from "react";
+import { FC, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { Sider } from "../../components/Sider";
 import { useSecuricator } from "../../context/SecuricatorContext";
 import { db } from "../../database/db";
 import { Message } from "./Message";
+import { useWindowFocus } from "../../utils/useWindowFocus";
 
 interface Props {}
 
 export const Chat: FC<Props> = () => {
   const { publicKey: rawPublicKey } = useParams<{ publicKey: string }>();
-  const { sendMessage, setShowMenu } = useSecuricator();
+  const { sendMessage, setShowMenu, contacts, setContactRead } =
+    useSecuricator();
   const [message, setMessage] = useState<string>("");
 
   const publicKey = useMemo(() => {
@@ -34,6 +36,19 @@ export const Chat: FC<Props> = () => {
       ...receivedMessages.map((m) => ({ ...m, sent: false })),
     ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }, [publicKey]);
+
+  const pageIsFocused = useWindowFocus();
+
+  useEffect(() => {
+    if (!publicKey) return;
+    if (!pageIsFocused) return;
+    const hasUnreadMessages = contacts.find(
+      (c) => c.publicKey === publicKey && c.unread
+    );
+    if (hasUnreadMessages) {
+      setContactRead(publicKey);
+    }
+  }, [contacts, publicKey, setContactRead, pageIsFocused]);
 
   return (
     <>

@@ -1,5 +1,6 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useSecuricator } from "../../context/SecuricatorContext";
+import { useEffect } from "react";
 
 const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID || "dev";
 
@@ -7,6 +8,15 @@ export function Sider() {
   const { globalPublicKey, contacts, name, connected, showMenu, setShowMenu } =
     useSecuricator();
   const { publicKey } = useParams<any>();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const listener = window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        navigate("/");
+      }
+    });
+  }, [navigate]);
 
   return (
     <>
@@ -63,7 +73,7 @@ export function Sider() {
                 className={c.publicKey === publicKey ? "open" : ""}
               >
                 <Link to={`/contacts/${encodeURIComponent(c.publicKey)}`}>
-                  <h3 className="unread">
+                  <h3 className={c.unread ? "unread" : ""}>
                     {/* <div className="connected"></div>{" "} */}
                     {c.displayName || c.publicKey}
                   </h3>

@@ -17,6 +17,30 @@ import { generateSymmetricKey } from "../utils/generateSymmetricKey";
 import { symmetricDecrypt } from "../utils/symmetricDecrypt";
 import { symmetricEncrypt } from "../utils/symmetricEncrypt";
 
+function setNotificationIcon() {
+  var link = document.querySelector("link[rel~='icon']");
+  if (!link) {
+    link = document.createElement("link");
+    // @ts-ignore
+    link.rel = "icon";
+    document.head.appendChild(link);
+  }
+  // @ts-ignore
+  link.href = "/bell.ico";
+}
+
+function removeNotificationIcon() {
+  var link = document.querySelector("link[rel~='icon']");
+  if (!link) {
+    link = document.createElement("link");
+    // @ts-ignore
+    link.rel = "icon";
+    document.head.appendChild(link);
+  }
+  // @ts-ignore
+  link.href = "/favicon.ico";
+}
+
 async function initializeAccount() {
   const existingAccount = window.localStorage.getItem("securicator-account");
   if (existingAccount) {
@@ -45,6 +69,7 @@ interface Props {
   biography: string;
   showMenu: boolean;
   setShowMenu: (show: boolean) => void;
+  setContactRead: (publicKey: string) => void;
 }
 
 export interface Contact {
@@ -52,6 +77,7 @@ export interface Contact {
   displayName?: string;
   biography?: string;
   everBeenOnline: boolean;
+  unread?: boolean;
 }
 
 const SecuricatorContext = createContext<Props>({} as Props);
@@ -89,6 +115,15 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       }
     );
   }
+
+  const setContactRead = useCallback((publicKey: string) => {
+    setContacts((old) =>
+      old.map((contact) => ({
+        ...contact,
+        unread: contact.publicKey === publicKey ? false : contact.unread,
+      }))
+    );
+  }, []);
 
   async function sendUnackedEvents(publicKey: string) {
     const contactEvents = await db.events
@@ -130,6 +165,15 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         const envelope = JSON.parse(event.payload);
         envelope.createdAt = new Date(envelope.createdAt);
         envelope.deliveredAt = new Date();
+        setContacts((old) =>
+          old.map((contact) => ({
+            ...contact,
+            unread:
+              contact.publicKey === envelope.senderPublicKey
+                ? true
+                : contact.unread || false,
+          }))
+        );
         db.envelopes.add(envelope);
         const deliveredEvent: Event = {
           id: uuid(),
@@ -373,6 +417,28 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     [contacts, globalPublicKey, sendToContact]
   );
 
+  const unreadContacts = useMemo(() => {
+    return contacts.filter((c) => c.unread).length;
+  }, [contacts]);
+
+  useEffect(() => {
+    if (unreadContacts) {
+      setNotificationIcon();
+    } else {
+      removeNotificationIcon();
+    }
+  }, [unreadContacts]);
+
+  useEffect(() => {
+    const originalTitle = document.title;
+    document.title = unreadContacts
+      ? `(${unreadContacts}) ${originalTitle}`
+      : originalTitle;
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [unreadContacts]);
+
   useEffect(() => {
     if (!connected) return;
     const interval = setInterval(() => {
@@ -414,6 +480,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         changeBiography,
         showMenu,
         setShowMenu,
+        setContactRead,
       }}
     >
       {children}
