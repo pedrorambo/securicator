@@ -122,9 +122,6 @@ aside h2 {
   margin-bottom: 1rem;
 }
 
-.contacts li {
-}
-
 .contacts li a {
   background-color: var(--background);
   border-radius: 6px;
@@ -134,6 +131,10 @@ aside h2 {
   padding: 0.5rem;
   display: block;
   border: 2px solid transparent;
+}
+
+.contacts li.open a {
+  border: 2px solid var(--primary-color);
 }
 
 .contacts span {

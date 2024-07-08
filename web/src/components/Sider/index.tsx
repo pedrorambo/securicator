@@ -1,10 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useSecuricator } from "../../context/SecuricatorContext";
 
 const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID || "dev";
 
 export function Sider() {
   const { globalPublicKey, contacts, name, connected } = useSecuricator();
+  const { publicKey } = useParams<any>();
 
   return (
     <aside>
@@ -16,7 +17,10 @@ export function Sider() {
       <div className="side-content">
         <ul className="contacts" id="friends">
           {contacts.map((c) => (
-            <li key={c.publicKey}>
+            <li
+              key={c.publicKey}
+              className={c.publicKey === publicKey ? "open" : ""}
+            >
               <Link to={`/contacts/${encodeURIComponent(c.publicKey)}`}>
                 <h3 className="unread">
                   <div className="connected"></div>{" "}
