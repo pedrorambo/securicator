@@ -5,7 +5,7 @@ let queue = [];
 const MAX_QUEUE_SIZE = 10000;
 
 const wss = new WebSocketServer({
-  port: 9090,
+  port: 9093,
   clientTracking: true,
   maxPayload: 1024 * 1024,
 });
