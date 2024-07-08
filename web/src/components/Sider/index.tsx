@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useSecuricator } from "../../context/SecuricatorContext";
 
-const COMPILED_COMMIT_ID = process.env.CF_PAGES_COMMIT_SHA || "dev";
+const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID || "dev";
 
 export function Sider() {
   const { globalPublicKey, contacts, name, connected } = useSecuricator();

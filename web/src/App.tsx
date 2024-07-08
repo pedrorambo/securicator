@@ -7,7 +7,7 @@ import { Chat } from "./pages/Chat";
 import { ChangeName } from "./pages/ChangeName";
 import { useEffect } from "react";
 
-const COMPILED_COMMIT_ID = process.env.CF_PAGES_COMMIT_SHA?.trim();
+const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID?.trim();
 
 function App() {
   useEffect(() => {
