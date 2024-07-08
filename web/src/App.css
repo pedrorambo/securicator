@@ -119,6 +119,7 @@ aside h2 {
 
 .contacts {
   list-style-type: none;
+  margin-bottom: 1rem;
 }
 
 .contacts li {
@@ -192,6 +193,7 @@ aside h2 {
   padding: 0.5rem 1rem;
   text-decoration: underline;
   cursor: pointer;
+  border-radius: 4px;
 }
 
 .text-muted {

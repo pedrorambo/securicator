@@ -28,7 +28,9 @@ export function Sider() {
           ))}
         </ul>
 
-        <Link to="/contacts/new">Add new contact</Link>
+        <Link to="/contacts/new" className="btn btn-text">
+          Add new contact
+        </Link>
       </div>
 
       <div className="side-footer">
