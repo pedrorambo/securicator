@@ -4,6 +4,7 @@ import { useParams } from "react-router";
 import { Sider } from "../../components/Sider";
 import { useSecuricator } from "../../context/SecuricatorContext";
 import { db } from "../../database/db";
+import { Message } from "./Message";
 
 interface Props {}
 
@@ -46,7 +47,7 @@ export const Chat: FC<Props> = () => {
                 key={message.id}
               >
                 <div>
-                  <p>{message.content}</p>
+                  <Message>{message.content}</Message>
                   <span
                     className={`delivered
                       ${message.deliveredAt ? "" : "not-delivered"}
