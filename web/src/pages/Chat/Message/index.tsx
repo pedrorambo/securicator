@@ -17,7 +17,9 @@ export const Message: FC<Props> = ({ children }) => {
         if (p.startsWith("http") || p.startsWith("https")) {
           return (
             <>
-              <a href={p}>{p}</a>{" "}
+              <a href={p} target="blank" rel="noreferrer">
+                {p}
+              </a>{" "}
             </>
           );
         }
