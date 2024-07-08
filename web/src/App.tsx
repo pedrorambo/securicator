@@ -7,7 +7,7 @@ import { Chat } from "./pages/Chat";
 import { ChangeName } from "./pages/ChangeName";
 import { useEffect } from "react";
 
-const COMPILED_COMMIT_ID = process.env.CF_PAGES_COMMIT_SHA;
+const COMPILED_COMMIT_ID = process.env.CF_PAGES_COMMIT_SHA?.trim();
 
 function App() {
   useEffect(() => {
@@ -17,7 +17,8 @@ function App() {
         cache: "no-cache",
       }).then((response) => {
         response.text().then((response) => {
-          const latestCommitId = response;
+          const latestCommitId = response.trim();
+          console.log(latestCommitId, latestCommitId.length);
           if (
             latestCommitId.length === 40 &&
             COMPILED_COMMIT_ID?.length === 40
