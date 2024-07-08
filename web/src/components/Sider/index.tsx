@@ -57,7 +57,7 @@ export function Sider() {
               >
                 <Link to={`/contacts/${encodeURIComponent(c.publicKey)}`}>
                   <h3 className="unread">
-                    <div className="connected"></div>{" "}
+                    {/* <div className="connected"></div>{" "} */}
                     {c.displayName || c.publicKey}
                   </h3>
                   <span>{c.biography}</span>
