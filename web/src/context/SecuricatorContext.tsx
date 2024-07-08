@@ -93,7 +93,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       .equals(publicKey)
       .toArray();
     for (const event of contactEvents) {
-      await sendToContact(publicKey, `EVENT ${JSON.stringify(event)}`);
+      await sendToContact(publicKey, 1, `EVENT ${JSON.stringify(event)}`);
     }
   }
 
@@ -105,6 +105,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     if (count > 0) {
       await sendToContact(
         event.fromPublicKey,
+        0,
         `ACK_EVENT ${JSON.stringify({
           id: event.id,
           acknowledgedAt: now.toISOString(),
@@ -114,6 +115,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     } else {
       await sendToContact(
         event.fromPublicKey,
+        0,
         `ACK_EVENT ${JSON.stringify({
           id: event.id,
           acknowledgedAt: now.toISOString(),
@@ -140,6 +142,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         db.events.add(deliveredEvent);
         await sendToContact(
           envelope.senderPublicKey,
+          1,
           `EVENT ${JSON.stringify(deliveredEvent)}`
         );
         break;
@@ -224,8 +227,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         .map((part: string) => part.trim());
       const contactGlobalPublicKey = parts[0];
       const myGlobalPublicKey = parts[1];
-      const verb = parts[2].replace(/gpk_/, "");
-      const content = parts.slice(3).join(" ");
+      const verb = parts[3].replace(/gpk_/, "");
+      const content = parts.slice(4).join(" ");
 
       if (verb === "CONTACT_MESSAGE") {
         handleInnerMessage(contactGlobalPublicKey, content);
@@ -324,7 +327,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   );
 
   const sendToContact = useCallback(
-    async (publicKey: string, content: string) => {
+    async (publicKey: string, retentionLevel: number, content: string) => {
       const symmetricKey = await generateSymmetricKey();
       const encryptedSymmetricKey = await asymmetricEncrypt(
         symmetricKey,
@@ -332,7 +335,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       );
       const encryptedContent = await symmetricEncrypt(content, symmetricKey);
       websocket.current?.send(
-        `${globalPublicKey} ${publicKey} CONTACT_MESSAGE ${encryptedSymmetricKey} ${encryptedContent.iv} ${encryptedContent.encrypted}`
+        `${globalPublicKey} ${publicKey} ${retentionLevel} CONTACT_MESSAGE ${encryptedSymmetricKey} ${encryptedContent.iv} ${encryptedContent.encrypted}`
       );
     },
     [globalPublicKey]
@@ -359,7 +362,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         payload: JSON.stringify(envelope),
       };
       db.events.add(event);
-      sendToContact(publicKey, `EVENT ${JSON.stringify(event)}`);
+      sendToContact(publicKey, 1, `EVENT ${JSON.stringify(event)}`);
     },
     [contacts, globalPublicKey, sendToContact]
   );
@@ -371,10 +374,12 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       for (const contact of contacts) {
         sendToContact(
           contact.publicKey,
+          0,
           `HEARTBEAT ${new Date().toISOString()}`
         );
         sendToContact(
           contact.publicKey,
+          0,
           `CONTACT_INFO ${JSON.stringify({
             name,
             biography,
