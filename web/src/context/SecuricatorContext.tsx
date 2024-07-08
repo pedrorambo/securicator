@@ -43,6 +43,8 @@ interface Props {
   changeBiography: (name: string) => any;
   connected: boolean;
   biography: string;
+  showMenu: boolean;
+  setShowMenu: (show: boolean) => void;
 }
 
 export interface Contact {
@@ -63,6 +65,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   const [connected, setConnected] = useState<boolean>(false);
   const websocket = useRef<WebSocket | null>(null);
   const [websocketReloadCount, setWebsocketReloadCount] = useState<number>(1);
+  const [showMenu, setShowMenu] = useState<boolean>(false);
 
   const isInitialized = useMemo(() => {
     return !!globalPrivateKey && !!globalPublicKey;
@@ -409,6 +412,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         connected,
         biography,
         changeBiography,
+        showMenu,
+        setShowMenu,
       }}
     >
       {children}

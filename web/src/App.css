@@ -434,3 +434,55 @@ aside a {
 .text-button:hover {
   text-decoration: underline;
 }
+
+.close-menu-button {
+  padding: 0.5rem;
+  color: tomato;
+}
+
+#show-menu-button {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--background-accent);
+  padding: 1rem;
+  z-index: 1;
+}
+
+@media (max-width: 800px) {
+  #root {
+    display: block;
+  }
+
+  aside {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    background: var(--background-accent);
+    z-index: 10;
+
+    display: none;
+  }
+
+  aside.force-show-menu {
+    display: flex;
+  }
+
+  /* aside {
+    display: none;
+  }
+
+  aside.force-show {
+    display: flex;
+  } */
+}
+
+@media (min-width: 801px) {
+  #show-menu-button {
+    display: none;
+  }
+}

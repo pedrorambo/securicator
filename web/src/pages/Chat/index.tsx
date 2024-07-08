@@ -9,7 +9,7 @@ interface Props {}
 
 export const Chat: FC<Props> = () => {
   const { publicKey: rawPublicKey } = useParams<{ publicKey: string }>();
-  const { sendMessage } = useSecuricator();
+  const { sendMessage, setShowMenu } = useSecuricator();
   const [message, setMessage] = useState<string>("");
 
   const publicKey = useMemo(() => {
