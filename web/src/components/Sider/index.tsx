@@ -15,6 +15,13 @@ export function Sider() {
         className="btn btn-text"
         onClick={() => setShowMenu(true)}
       >
+        <div className="conn-status" id="conn-status">
+          {connected ? (
+            <div className="connected"></div>
+          ) : (
+            <div className="disconnected"></div>
+          )}
+        </div>
         Show menu
       </button>
 
