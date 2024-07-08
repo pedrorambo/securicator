@@ -462,6 +462,24 @@ aside a {
   z-index: 1;
 }
 
+aside,
+aside > div {
+  overflow: hidden;
+  flex-shrink: none;
+}
+
+aside > div {
+  flex-wrap: wrap;
+}
+
+aside h2 {
+  display: block;
+  text-overflow: ellipsis;
+  text-wrap: nowrap;
+  word-wrap: normal;
+  word-break: break-all;
+}
+
 @media (max-width: 800px) {
   #root {
     display: block;
