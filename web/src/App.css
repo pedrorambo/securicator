@@ -194,6 +194,10 @@ aside h2 {
   cursor: pointer;
 }
 
+.text-muted {
+  color: var(--text-muted);
+}
+
 .btn-text:hover {
   background-color: var(--background);
   color: var(--text-color);

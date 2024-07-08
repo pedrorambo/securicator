@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { useSecuricator } from "../../context/SecuricatorContext";
 
+const COMPILED_COMMIT_ID = process.env.CF_PAGES_COMMIT_SHA || "dev";
+
 export function Sider() {
   const { globalPublicKey, contacts, name, connected } = useSecuricator();
 
@@ -46,6 +48,9 @@ export function Sider() {
           >
             Copy public key
           </button>
+          <span className="text-muted" title={COMPILED_COMMIT_ID}>
+            {COMPILED_COMMIT_ID.substring(0, 8)}
+          </span>
         </div>
       </div>
     </aside>
