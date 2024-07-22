@@ -272,12 +272,30 @@ hr {
 
 .top-menu {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+}
+
+.contact-status {
+  color: var(--text-muted);
+}
+
+.contact-status .online {
+  color: var(--success);
+}
+
+.top-menu .contact-name {
+  text-align: center;
+}
+
+.top-menu {
+  min-height: 48px;
 }
 
 .top-menu h2 {
   margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .top-menu button {
@@ -286,6 +304,8 @@ hr {
   justify-content: center;
   height: 100%;
   padding: 1rem;
+  margin-left: -1rem;
+  margin-right: -1rem;
 }
 
 .top-menu button img {

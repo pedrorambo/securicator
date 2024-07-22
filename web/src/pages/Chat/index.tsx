@@ -7,12 +7,13 @@ import { db } from "../../database/db";
 import { Message } from "./Message";
 import { useWindowFocus } from "../../utils/useWindowFocus";
 import leftIcon from "../../assets/left.svg";
+import { TopMenu } from "../TopMenu";
 
 interface Props {}
 
 export const Chat: FC<Props> = () => {
   const { publicKey: rawPublicKey } = useParams<{ publicKey: string }>();
-  const { sendMessage, setShowMenu, contacts, setContactRead } =
+  const { sendMessage, setShowMenu, contacts, setContactRead, connected } =
     useSecuricator();
   const [message, setMessage] = useState<string>("");
   const navigate = useNavigate();
@@ -59,15 +60,10 @@ export const Chat: FC<Props> = () => {
   return (
     <>
       <main>
-        <div className="top-menu">
-          <button
-            className="btn btn-invisible"
-            onClick={() => navigate("/chats")}
-          >
-            <img src={leftIcon} alt="" />
-          </button>
-          <h2>{contactName}</h2>
-        </div>
+        <TopMenu
+          title={contactName}
+          subtitle={<small className="contact-status">Unknown</small>}
+        />
         <div className="chat-box">
           <div className="messages-box">
             {contactMessages?.map((message) => (

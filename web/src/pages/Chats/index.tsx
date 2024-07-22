@@ -7,6 +7,7 @@ import { db } from "../../database/db";
 import { Message } from "./Message";
 import { useWindowFocus } from "../../utils/useWindowFocus";
 import { Link } from "react-router-dom";
+import { TopMenu } from "../TopMenu";
 
 interface Props {}
 
@@ -19,7 +20,7 @@ export const Chats: FC<Props> = () => {
   return (
     <>
       <main>
-        <h2>Contacts</h2>
+        <TopMenu hideBackButton title="Chats" />
         <ul className="contacts" id="friends">
           {contacts.map((c) => (
             <li
