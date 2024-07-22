@@ -41,8 +41,19 @@ html,
 body {
   margin: 0;
   padding: 0;
-  width: 100%;
-  height: 100%;
+
+  width: 100vw;
+  width: -moz-available; /* WebKit-based browsers will ignore this. */
+  width: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
+  width: fill-available;
+
+  height: 100vh;
+  height: -moz-available; /* WebKit-based browsers will ignore this. */
+  height: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
+  height: fill-available;
+
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 *,
@@ -88,24 +99,10 @@ span {
 #root {
   background-color: var(--background-accent);
   color: var(--text-color);
-  margin: 0;
-
   overflow: hidden;
-
   display: flex;
-
-  width: 100vw;
-  width: -moz-available; /* WebKit-based browsers will ignore this. */
-  width: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
-  width: fill-available;
-
-  height: 100vh;
-  height: -moz-available; /* WebKit-based browsers will ignore this. */
-  height: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
-  height: fill-available;
-
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  width: 100%;
+  height: 100%;
 }
 
 aside {
