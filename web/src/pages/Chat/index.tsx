@@ -104,7 +104,6 @@ export const Chat: FC<Props> = () => {
               id="message"
               placeholder="Text message"
               maxLength={1024}
-              autoFocus
               value={message}
               onChange={(e) => setMessage(e.target.value || "")}
             />
