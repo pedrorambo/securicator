@@ -42,6 +42,11 @@ html {
   padding: 0;
 }
 
+html,
+body {
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -296,11 +301,10 @@ hr {
   height: 100%;
   padding: 1rem;
   padding-right: 1.75rem;
-  overflow-y: auto;
-
   overflow: auto;
   display: flex;
   flex-direction: column-reverse;
+  overscroll-behavior: contain;
 }
 
 .messages-box p {
