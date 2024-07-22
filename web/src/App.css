@@ -45,20 +45,6 @@ body {
   height: 100%;
 }
 
-#root {
-  width: 100vw;
-  width: -moz-available; /* WebKit-based browsers will ignore this. */
-  width: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
-  width: fill-available;
-
-  height: 100vh;
-  height: -moz-available; /* WebKit-based browsers will ignore this. */
-  height: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
-  height: fill-available;
-
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
 *,
 a,
 li,
@@ -102,11 +88,22 @@ span {
 #root {
   background-color: var(--background-accent);
   color: var(--text-color);
-  width: 100vw;
-  height: 100vh;
   margin: 0;
 
   display: flex;
+
+  width: 100vw;
+  width: -moz-available; /* WebKit-based browsers will ignore this. */
+  width: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
+  width: fill-available;
+
+  height: 100vh;
+  height: -moz-available; /* WebKit-based browsers will ignore this. */
+  height: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
+  height: fill-available;
+
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 aside {
