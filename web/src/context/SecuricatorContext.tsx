@@ -96,6 +96,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   const [initialized, setInitialized] = useState<boolean>(false);
   const [hasConfiguredAccount, setHasConfiguredAccount] =
     useState<boolean>(false);
+  const [lastResendUnackedMessagesAt, setLastResendUnackedMessagesAt] =
+    useState<number>();
 
   const isInitialized = useMemo(() => {
     return !!globalPrivateKey && !!globalPublicKey;
@@ -129,6 +131,19 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     );
   }, []);
 
+  useEffect(() => {
+    if (!connected || !contacts.length) return;
+    const now = Date.now();
+    if (
+      !lastResendUnackedMessagesAt ||
+      Math.abs(now - lastResendUnackedMessagesAt) > 1000 * 60
+    ) {
+      contacts.forEach((contact) => {
+        sendUnackedEvents(contact.publicKey);
+      });
+    }
+  }, [connected, contacts, sendUnackedEvents, lastResendUnackedMessagesAt]);
+
   async function sendUnackedEvents(publicKey: string) {
     const contactEvents = await db.events
       .where("toPublicKey")
@@ -147,7 +162,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     if (count > 0) {
       await sendToContact(
         event.fromPublicKey,
-        0,
+        1,
         `ACK_EVENT ${JSON.stringify({
           id: event.id,
           acknowledgedAt: now.toISOString(),
@@ -157,7 +172,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     } else {
       await sendToContact(
         event.fromPublicKey,
-        0,
+        1,
         `ACK_EVENT ${JSON.stringify({
           id: event.id,
           acknowledgedAt: now.toISOString(),
