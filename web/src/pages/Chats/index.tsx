@@ -14,6 +14,18 @@ export const Chats: FC<Props> = () => {
     useSecuricator();
   const { publicKey } = useParams<any>();
   const navigate = useNavigate();
+  const [copied, setCopied] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (copied) {
+      const timeout = setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+      return () => {
+        clearTimeout(timeout);
+      };
+    }
+  }, [copied]);
 
   return (
     <>
@@ -47,6 +59,9 @@ export const Chats: FC<Props> = () => {
           onClick={() => {
             navigator.clipboard
               .writeText(globalPublicKey || "")
+              .then(() => {
+                setCopied(true);
+              })
               .catch(console.error);
             if (navigator.share) {
               navigator
@@ -57,7 +72,7 @@ export const Chats: FC<Props> = () => {
             }
           }}
         >
-          Copy public key
+          {copied ? "Copied" : "Copy public key"}
         </button>
         <span className="text-muted version" title={COMPILED_COMMIT_ID}>
           {COMPILED_COMMIT_ID.substring(0, 8)}
