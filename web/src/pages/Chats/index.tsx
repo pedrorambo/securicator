@@ -59,7 +59,7 @@ export const Chats: FC<Props> = () => {
         >
           Copy public key
         </button>
-        <span className="text-muted" title={COMPILED_COMMIT_ID}>
+        <span className="text-muted version" title={COMPILED_COMMIT_ID}>
           {COMPILED_COMMIT_ID.substring(0, 8)}
         </span>
       </main>

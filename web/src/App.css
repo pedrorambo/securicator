@@ -232,6 +232,10 @@ aside h2 {
   background: #ffffff;
 }
 
+.version {
+  padding: 0.5rem 0;
+}
+
 .btn-text {
   background-color: transparent;
   border: none;
@@ -241,6 +245,9 @@ aside h2 {
   text-decoration: underline;
   cursor: pointer;
   border-radius: 4px;
+
+  padding-left: 0;
+  text-align: left;
 }
 
 .text-muted {
