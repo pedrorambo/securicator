@@ -17,12 +17,20 @@ export interface Event {
   toPublicKey: string;
   createdAt: Date;
   payload: string;
+  acknowledged: boolean;
 }
 
 export const db = new Dexie("securicator") as Dexie & {
   envelopes: Dexie.Table<Envelope, number>;
   events: Dexie.Table<Event, number>;
 };
+
+db.version(2).stores({
+  envelopes:
+    "&id, content, senderPublicKey, receiverPublicKey, createdAt, deliveredAt, readAt",
+  events:
+    "&id, type, fromPublicKey, toPublicKey, createdAt, payload, acknowledged",
+});
 
 db.version(1).stores({
   envelopes:

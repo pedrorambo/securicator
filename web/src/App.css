@@ -254,6 +254,10 @@ aside h2 {
   color: var(--text-muted);
 }
 
+.btn-text-danger {
+  color: var(--danger);
+}
+
 .btn-text:hover {
   background-color: var(--background);
   color: var(--text-color);
@@ -623,4 +627,31 @@ aside h2 {
   .close-menu-button {
     display: none;
   }
+}
+
+.startup-selection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.startup-selection > div {
+  background: #ffffff;
+  padding: 1rem;
+  border-radius: 8px;
+
+  width: 100%;
+  max-width: 600px;
+}
+
+.startup-selection h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.startup-selection p {
+  color: var(--text-muted);
 }

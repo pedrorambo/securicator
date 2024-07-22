@@ -1,6 +1,5 @@
-import { useLiveQuery } from "dexie-react-hooks";
-import { FC, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { FC, useEffect, useState } from "react";
+import { useParams } from "react-router";
 import { useSecuricator } from "../../context/SecuricatorContext";
 import { Link } from "react-router-dom";
 import { TopMenu } from "../TopMenu";
@@ -10,11 +9,11 @@ const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID || "dev";
 interface Props {}
 
 export const Chats: FC<Props> = () => {
-  const { globalPublicKey, contacts, name, connected, showMenu, setShowMenu } =
-    useSecuricator();
+  const { globalPublicKey, contacts, synchronizationKey } = useSecuricator();
   const { publicKey } = useParams<any>();
-  const navigate = useNavigate();
   const [copied, setCopied] = useState<boolean>(false);
+  const [copiedSynchronization, setCopiedSynchronization] =
+    useState<boolean>(false);
 
   useEffect(() => {
     if (copied) {
@@ -26,6 +25,17 @@ export const Chats: FC<Props> = () => {
       };
     }
   }, [copied]);
+
+  useEffect(() => {
+    if (copiedSynchronization) {
+      const timeout = setTimeout(() => {
+        setCopiedSynchronization(false);
+      }, 2000);
+      return () => {
+        clearTimeout(timeout);
+      };
+    }
+  }, [copiedSynchronization]);
 
   return (
     <>
@@ -74,9 +84,67 @@ export const Chats: FC<Props> = () => {
         >
           {copied ? "Copied" : "Copy public key"}
         </button>
+
         <span className="text-muted version" title={COMPILED_COMMIT_ID}>
           {COMPILED_COMMIT_ID.substring(0, 8)}
         </span>
+
+        <hr />
+
+        <button
+          className="btn btn-text btn-text-danger"
+          onClick={() => {
+            const response = window.confirm(
+              "Are you sure you want to copy or share the synchronization key? Any person with the key can access your account."
+            );
+            if (response) {
+              navigator.clipboard
+                .writeText(synchronizationKey || "")
+                .then(() => {
+                  setCopiedSynchronization(true);
+                })
+                .catch(console.error);
+              if (navigator.share) {
+                navigator
+                  .share({
+                    text: synchronizationKey || "",
+                  })
+                  .catch(console.error);
+              }
+            }
+          }}
+        >
+          {copiedSynchronization ? "Copied" : "Copy synchronization key"}
+        </button>
+
+        <button
+          className="btn btn-text btn-text-danger"
+          onClick={() => {
+            const response = window.confirm(
+              "Are you sure you want to delete everything?"
+            );
+            if (response) {
+              const response2 = window.confirm(
+                "Are you really sure you want to delete everything?"
+              );
+              if (response2) {
+                window.localStorage.clear();
+                window.indexedDB
+                  .databases()
+                  .then((r) => {
+                    for (var i = 0; i < r.length; i++)
+                      // @ts-ignore
+                      window.indexedDB.deleteDatabase(r[i].name);
+                  })
+                  .then(() => {
+                    window.location.replace("/");
+                  });
+              }
+            }
+          }}
+        >
+          Delete everything
+        </button>
       </main>
     </>
   );

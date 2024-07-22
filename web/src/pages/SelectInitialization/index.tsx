@@ -1,24 +1,43 @@
 import { FC } from "react";
-import { Sider } from "../../components/Sider";
 import { useSecuricator } from "../../context/SecuricatorContext";
+import { TopMenu } from "../TopMenu";
+import { useNavigate } from "react-router";
 
 interface Props {}
 
 export const SelectInitialization: FC<Props> = () => {
-  const { globalPrivateKey, globalPublicKey, isInitialized } = useSecuricator();
+  const { initializeNewAccount } = useSecuricator();
+  const navigate = useNavigate();
 
   return (
-    <>
-      <div>
-        <button>
-          <h2>Criar nova conta</h2>
-        </button>
+    <main>
+      <TopMenu hideBackButton title="Securicator Startup" />
+      <div className="startup-selection">
+        <div>
+          <h2>Create new account</h2>
+          <p>
+            Recommended if you don't have an account yet associated with another
+            device.
+          </p>
+          <button className="btn" onClick={() => initializeNewAccount()}>
+            Continue
+          </button>
+        </div>
+        <div>
+          <h2>Assign existing account</h2>
+          <p>
+            Recommended if you have an account associated with another device.
+          </p>
+          <button
+            className="btn"
+            onClick={() => {
+              navigate("/assign-existing-account");
+            }}
+          >
+            Continue
+          </button>
+        </div>
       </div>
-      <div>
-        <button>
-          <h2>Importar conta existente</h2>
-        </button>
-      </div>
-    </>
+    </main>
   );
 };

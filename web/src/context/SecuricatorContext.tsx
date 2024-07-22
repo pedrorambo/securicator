@@ -17,6 +17,19 @@ import { generateSymmetricKey } from "../utils/generateSymmetricKey";
 import { symmetricDecrypt } from "../utils/symmetricDecrypt";
 import { symmetricEncrypt } from "../utils/symmetricEncrypt";
 
+function getSynchronizationId() {
+  const existing = window.localStorage.getItem(
+    "securicator-synchronization-id"
+  );
+  if (existing) {
+    return existing;
+  } else {
+    const newId = uuid();
+    window.localStorage.setItem("securicator-synchronization-id", newId);
+    return newId;
+  }
+}
+
 function setNotificationIcon() {
   var link = document.querySelector("link[rel~='icon']");
   if (!link) {
@@ -71,6 +84,10 @@ interface Props {
   showMenu: boolean;
   setShowMenu: (show: boolean) => void;
   setContactRead: (publicKey: string) => void;
+  hasConfiguredAccount: boolean;
+  initializeNewAccount: () => void;
+  initializeExistingAccount: (synchronizationKey: string) => void;
+  synchronizationKey?: string;
 }
 
 export interface Contact {
@@ -99,9 +116,26 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   const [lastResendUnackedMessagesAt, setLastResendUnackedMessagesAt] =
     useState<number>();
 
-  const isInitialized = useMemo(() => {
-    return !!globalPrivateKey && !!globalPublicKey;
-  }, [globalPrivateKey, globalPublicKey]);
+  const initializeNewAccount = useCallback(async () => {
+    const { privateKey, publicKey } = await generateKeypair();
+    window.localStorage.setItem(
+      "securicator-account",
+      JSON.stringify({ privateKey, publicKey })
+    );
+    window.location.replace("/");
+  }, []);
+
+  const initializeExistingAccount = useCallback(
+    async (synchronizationKey: string) => {
+      const [privateKey, publicKey] = synchronizationKey.split(" ");
+      window.localStorage.setItem(
+        "securicator-account",
+        JSON.stringify({ privateKey, publicKey })
+      );
+      window.location.replace("/");
+    },
+    []
+  );
 
   async function handleEnvelopeDelivered(
     publicKey: string,
@@ -131,86 +165,105 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     );
   }, []);
 
-  useEffect(() => {
-    if (!connected || !contacts.length) return;
-    const now = Date.now();
-    if (
-      !lastResendUnackedMessagesAt ||
-      Math.abs(now - lastResendUnackedMessagesAt) > 1000 * 60
-    ) {
-      contacts.forEach((contact) => {
-        sendUnackedEvents(contact.publicKey);
-      });
-    }
-  }, [connected, contacts, sendUnackedEvents, lastResendUnackedMessagesAt]);
-
-  async function sendUnackedEvents(publicKey: string) {
-    const contactEvents = await db.events
-      .where("toPublicKey")
-      .equals(publicKey)
+  async function sendEventsAfter(date: Date) {
+    if (!globalPublicKey) return;
+    const events = await db.events
+      .where("createdAt")
+      .aboveOrEqual(date)
       .toArray();
-    for (const event of contactEvents) {
-      await sendToContact(publicKey, 1, `EVENT ${JSON.stringify(event)}`);
+    console.log(events);
+    for (const event of events) {
+      console.log("SENDING EVENT ", event.type);
+      await sendToContact(
+        globalPublicKey,
+        0,
+        `EVENT ${JSON.stringify({
+          ...event,
+          isSyncEvent: true,
+        })}`
+      );
     }
   }
 
-  async function handleEventReceived(event: Event) {
+  async function handleEventReceived(event: Event & { isSyncEvent?: boolean }) {
     if (!globalPublicKey) return;
-    console.log("EVENT RECEIVED: ", event.type);
     const count = await db.events.where("id").equals(event.id).count();
     const now = new Date();
-    if (count > 0) {
-      await sendToContact(
-        event.fromPublicKey,
-        1,
-        `ACK_EVENT ${JSON.stringify({
-          id: event.id,
-          acknowledgedAt: now.toISOString(),
-        })}`
-      );
-      return;
-    } else {
-      await sendToContact(
-        event.fromPublicKey,
-        1,
-        `ACK_EVENT ${JSON.stringify({
-          id: event.id,
-          acknowledgedAt: now.toISOString(),
-        })}`
-      );
+
+    const isSyncEvent = !!event.isSyncEvent;
+
+    if (!isSyncEvent) {
+      if (count > 0) {
+        await sendToContact(
+          event.fromPublicKey,
+          1,
+          `ACK_EVENT ${JSON.stringify({
+            id: event.id,
+            acknowledged: true,
+          })}`
+        );
+        return;
+      } else {
+        await sendToContact(
+          event.fromPublicKey,
+          1,
+          `ACK_EVENT ${JSON.stringify({
+            id: event.id,
+            acknowledged: true,
+          })}`
+        );
+      }
     }
+
+    console.log("Received event", event.type);
+
     switch (event.type) {
       case "envelope":
         const envelope = JSON.parse(event.payload);
-        envelope.createdAt = new Date(envelope.createdAt);
-        envelope.deliveredAt = new Date();
-        setContacts((old) =>
-          old.map((contact) => ({
-            ...contact,
-            unread:
-              contact.publicKey === envelope.senderPublicKey
-                ? true
-                : contact.unread || false,
-          }))
-        );
-        db.envelopes.add(envelope);
-        const deliveredEvent: Event = {
-          id: uuid(),
-          createdAt: new Date(),
-          fromPublicKey: globalPublicKey,
-          toPublicKey: envelope.senderPublicKey,
-          type: "envelope-delivered",
-          payload: JSON.stringify({
-            id: envelope.id,
-            deliveredAt: envelope.deliveredAt.toISOString(),
-          }),
-        };
-        db.events.add(deliveredEvent);
-        await sendToContact(
-          envelope.senderPublicKey,
-          1,
-          `EVENT ${JSON.stringify(deliveredEvent)}`
-        );
+        const envelopeExists = await db.envelopes
+          .where("id")
+          .equals(envelope.id)
+          .count();
+        if (envelopeExists <= 0) {
+          envelope.createdAt = new Date(envelope.createdAt);
+          if (!isSyncEvent) {
+            envelope.deliveredAt = new Date();
+          }
+          setContacts((old) =>
+            old.map((contact) => ({
+              ...contact,
+              unread:
+                contact.publicKey === envelope.senderPublicKey
+                  ? true
+                  : contact.unread || false,
+            }))
+          );
+          db.envelopes.add(envelope);
+        }
+        if (!isSyncEvent) {
+          const deliveredEvent: Event = {
+            id: uuid(),
+            createdAt: new Date(),
+            fromPublicKey: globalPublicKey,
+            toPublicKey: envelope.senderPublicKey,
+            type: "envelope-delivered",
+            acknowledged: false,
+            payload: JSON.stringify({
+              id: envelope.id,
+              deliveredAt: envelope.deliveredAt.toISOString(),
+            }),
+          };
+          db.events.add(deliveredEvent);
+          await sendToContact(
+            envelope.senderPublicKey,
+            1,
+            `EVENT ${JSON.stringify(deliveredEvent)}`
+          );
+        }
+        break;
+      case "contact":
+        const content = JSON.parse(event.payload);
+        addContact(content.publicKey, true);
         break;
       case "envelope-delivered":
         handleEnvelopeDelivered(event.fromPublicKey, JSON.parse(event.payload));
@@ -249,6 +302,57 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     }
   }
 
+  function getSynchronizations() {
+    const savedContent = window.localStorage.getItem(
+      "securicator-synchronizations"
+    );
+    return savedContent
+      ? JSON.parse(savedContent).map((item: any) => ({
+          ...item,
+          time: new Date(item.time),
+        }))
+      : [];
+  }
+
+  function updateSynchronization(id: string, time: Date) {
+    const current = getSynchronizations();
+    const existing = current.find((s: any) => s.id === id);
+    if (existing) {
+      existing.time = time.toISOString();
+      window.localStorage.setItem(
+        "securicator-synchronizations",
+        JSON.stringify(current)
+      );
+    } else {
+      current.push({ id, time });
+      window.localStorage.setItem(
+        "securicator-synchronizations",
+        JSON.stringify(current)
+      );
+    }
+  }
+
+  function getLastSentSynchronizationTime(synchronizationId: string) {
+    const synchronizations = getSynchronizations();
+    const found = synchronizations.find((s: any) => s.id === synchronizationId);
+    if (found) {
+      return found.time;
+    } else {
+      return new Date("1970-01-01");
+    }
+  }
+
+  async function handleSameContactSync(innerContent: string) {
+    const synchronizationTime = new Date();
+    const { synchronizationId } = JSON.parse(innerContent);
+    const lastSynchronization =
+      getLastSentSynchronizationTime(synchronizationId);
+    if (new Date().getTime() - lastSynchronization.getTime() > 1000 * 5) {
+      sendEventsAfter(lastSynchronization);
+      updateSynchronization(synchronizationId, synchronizationTime);
+    }
+  }
+
   async function handleInnerMessage(publicKey: string, rawContent: string) {
     if (!globalPrivateKey || !globalPublicKey) return;
     const [encryptedSymmetricKey, iv, encrypted] = rawContent.split(" ");
@@ -260,6 +364,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     const [verb, ...rest] = content.split(" ");
     const innerContent = rest.join(" ");
 
+    console.log("Received contact message: ", verb);
+
     switch (verb) {
       case "EVENT":
         const event = JSON.parse(innerContent);
@@ -268,17 +374,18 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         break;
       case "ACK_EVENT":
         const content = JSON.parse(innerContent);
-        await db.events
-          .where({
-            id: content.id,
-          })
-          .delete();
+        await db.events.update(content.id, {
+          acknowledged: true,
+        });
         break;
       case "CONTACT_INFO":
         handleContactInfoReceived(publicKey, innerContent);
         break;
       case "HEARTBEAT":
         sendUnackedEvents(publicKey);
+        break;
+      case "SAME_CONTACT_SYNC":
+        handleSameContactSync(innerContent);
         break;
     }
   }
@@ -349,26 +456,69 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    if (!globalPublicKey) return;
     const contacts = window.localStorage.getItem("securicator-contacts");
     if (contacts) {
-      setContacts(JSON.parse(contacts));
+      let savedContacts = JSON.parse(contacts) || [];
+      // MIGRATION
+      if (savedContacts.length) {
+        savedContacts = savedContacts.map((contact: any) => {
+          if (!contact.hasAddedEvent) {
+            contact.hasAddedEvent = true;
+            const event = {
+              id: uuid(),
+              type: "contact",
+              fromPublicKey: globalPublicKey,
+              toPublicKey: globalPublicKey,
+              createdAt: new Date(),
+              payload: JSON.stringify(contact),
+              acknowledged: true,
+            };
+            db.events.add(event);
+          }
+          return contact;
+        });
+        window.localStorage.setItem(
+          "securicator-contacts",
+          JSON.stringify(savedContacts)
+        );
+      }
+      // END MIGRATION
+      setContacts(savedContacts);
     }
-  }, []);
+  }, [globalPublicKey]);
 
   const addContact = useCallback(
-    (publicKey: string) => {
+    (publicKey: string, dontCreateEvent?: boolean) => {
+      if (!globalPublicKey) return;
       if (contacts?.some((c) => c.publicKey === publicKey)) return;
       const updatedContacts = [
         ...(contacts || []),
-        { publicKey, everBeenOnline: false },
+        { publicKey, everBeenOnline: false, hasAddedEvent: true },
       ];
       setContacts(updatedContacts);
+      if (!dontCreateEvent) {
+        const event = {
+          id: uuid(),
+          type: "contact",
+          fromPublicKey: globalPublicKey,
+          toPublicKey: globalPublicKey,
+          createdAt: new Date(),
+          payload: JSON.stringify({
+            publicKey,
+            everBeenOnline: false,
+            hasAddedEvent: true,
+          }),
+          acknowledged: true,
+        };
+        db.events.add(event);
+      }
       window.localStorage.setItem(
         "securicator-contacts",
         JSON.stringify(updatedContacts)
       );
     },
-    [contacts]
+    [contacts, globalPublicKey]
   );
 
   const changeName = useCallback(
@@ -436,6 +586,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         toPublicKey: publicKey,
         createdAt: new Date(),
         payload: JSON.stringify(envelope),
+        acknowledged: false,
       };
       db.events.add(event);
       sendToContact(publicKey, 1, `EVENT ${JSON.stringify(event)}`);
@@ -466,6 +617,20 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   }, [unreadContacts]);
 
   useEffect(() => {
+    if (!connected || !globalPublicKey) return;
+    const interval = setInterval(() => {
+      sendToContact(
+        globalPublicKey,
+        0,
+        `SAME_CONTACT_SYNC ${JSON.stringify({
+          synchronizationId: getSynchronizationId(),
+        })}`
+      );
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [connected, globalPublicKey, sendToContact]);
+
+  useEffect(() => {
     if (!connected) return;
     const interval = setInterval(() => {
       // FIXME Will cause problems when updating the contacts (receiving updates)
@@ -490,12 +655,44 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     };
   }, [connected, contacts, sendToContact, biography, name]);
 
+  const synchronizationKey = useMemo(() => {
+    if (!globalPrivateKey || !globalPublicKey) return undefined;
+    return `${globalPrivateKey} ${globalPublicKey}`;
+  }, [globalPrivateKey, globalPublicKey]);
+
+  const sendUnackedEvents = useCallback(
+    async (publicKey: string) => {
+      const contactEvents = await db.events
+        .where("toPublicKey")
+        .equals(publicKey)
+        .and((event) => event.acknowledged === false)
+        .toArray();
+      for (const event of contactEvents) {
+        await sendToContact(publicKey, 1, `EVENT ${JSON.stringify(event)}`);
+      }
+    },
+    [sendToContact]
+  );
+
+  useEffect(() => {
+    if (!connected || !contacts.length) return;
+    const now = Date.now();
+    if (
+      !lastResendUnackedMessagesAt ||
+      Math.abs(now - lastResendUnackedMessagesAt) > 1000 * 60
+    ) {
+      contacts.forEach((contact) => {
+        sendUnackedEvents(contact.publicKey);
+      });
+    }
+  }, [connected, contacts, sendUnackedEvents, lastResendUnackedMessagesAt]);
+
   return (
     <SecuricatorContext.Provider
       value={{
         globalPrivateKey,
         globalPublicKey,
-        isInitialized,
+        isInitialized: initialized,
         addContact,
         contacts,
         sendMessage,
@@ -507,6 +704,10 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         showMenu,
         setShowMenu,
         setContactRead,
+        hasConfiguredAccount,
+        initializeNewAccount,
+        initializeExistingAccount,
+        synchronizationKey,
       }}
     >
       {children}

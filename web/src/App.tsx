@@ -8,6 +8,7 @@ import { ChangeName } from "./pages/ChangeName";
 import { useEffect } from "react";
 import { SelectInitialization } from "./pages/SelectInitialization";
 import { Chats } from "./pages/Chats";
+import { AssignExistingAccountPage } from "./pages/AssignExistingAccountPage";
 
 const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID?.trim();
 
@@ -20,7 +21,6 @@ function App() {
       }).then((response) => {
         response.text().then((response) => {
           const latestCommitId = response.trim();
-          console.log(latestCommitId, latestCommitId.length);
           if (
             latestCommitId.length === 40 &&
             COMPILED_COMMIT_ID?.length === 40
@@ -45,6 +45,10 @@ function App() {
     {
       path: "/select-initialization",
       element: <SelectInitialization />,
+    },
+    {
+      path: "/assign-existing-account",
+      element: <AssignExistingAccountPage />,
     },
     {
       path: "/name",
