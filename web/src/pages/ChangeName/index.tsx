@@ -1,6 +1,7 @@
 import { FC, useEffect, useState } from "react";
 import { Sider } from "../../components/Sider";
 import { useSecuricator } from "../../context/SecuricatorContext";
+import { TopMenu } from "../TopMenu";
 
 interface Props {}
 
@@ -23,8 +24,8 @@ export const ChangeName: FC<Props> = () => {
 
   return (
     <>
-      <Sider />
       <main>
+        <TopMenu title="Edit profile" />
         <form
           onSubmit={(e) => {
             e.preventDefault();

@@ -1,13 +1,11 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { FC, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Sider } from "../../components/Sider";
 import { useSecuricator } from "../../context/SecuricatorContext";
-import { db } from "../../database/db";
-import { Message } from "./Message";
-import { useWindowFocus } from "../../utils/useWindowFocus";
 import { Link } from "react-router-dom";
 import { TopMenu } from "../TopMenu";
+
+const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID || "dev";
 
 interface Props {}
 
@@ -41,6 +39,29 @@ export const Chats: FC<Props> = () => {
         <Link to="/contacts/new" className="btn btn-text">
           Add new contact
         </Link>
+        <Link to="/name" className="btn btn-text">
+          Edit profile
+        </Link>
+        <button
+          className="btn btn-text"
+          onClick={() => {
+            navigator.clipboard
+              .writeText(globalPublicKey || "")
+              .catch(console.error);
+            if (navigator.share) {
+              navigator
+                .share({
+                  text: globalPublicKey || "",
+                })
+                .catch(console.error);
+            }
+          }}
+        >
+          Copy public key
+        </button>
+        <span className="text-muted" title={COMPILED_COMMIT_ID}>
+          {COMPILED_COMMIT_ID.substring(0, 8)}
+        </span>
       </main>
     </>
   );

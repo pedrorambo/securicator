@@ -1,6 +1,7 @@
 import { FC, useState } from "react";
 import { Sider } from "../../components/Sider";
 import { useSecuricator } from "../../context/SecuricatorContext";
+import { TopMenu } from "../TopMenu";
 
 interface Props {}
 
@@ -12,8 +13,8 @@ export const AddContact: FC<Props> = () => {
 
   return (
     <>
-      <Sider />
       <main>
+        <TopMenu title="Add new contact" />
         <form
           onSubmit={(e) => {
             e.preventDefault();
