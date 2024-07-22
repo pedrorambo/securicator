@@ -46,6 +46,7 @@ async function initializeAccount() {
   if (existingAccount) {
     return JSON.parse(existingAccount);
   } else {
+    return null;
     const { privateKey, publicKey } = await generateKeypair();
     window.localStorage.setItem(
       "securicator-account",
@@ -92,6 +93,9 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   const websocket = useRef<WebSocket | null>(null);
   const [websocketReloadCount, setWebsocketReloadCount] = useState<number>(1);
   const [showMenu, setShowMenu] = useState<boolean>(false);
+  const [initialized, setInitialized] = useState<boolean>(false);
+  const [hasConfiguredAccount, setHasConfiguredAccount] =
+    useState<boolean>(false);
 
   const isInitialized = useMemo(() => {
     return !!globalPrivateKey && !!globalPublicKey;
@@ -315,10 +319,17 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
 
   useEffect(() => {
     initializeAccount().then((account) => {
+      if (!account) {
+        setHasConfiguredAccount(false);
+        setInitialized(true);
+        return;
+      }
       setGlobalPrivateKey(account.privateKey);
       setGlobalPublicKey(account.publicKey);
       setName(account.name);
       setBiography(account.biography);
+      setHasConfiguredAccount(true);
+      setInitialized(true);
     });
   }, []);
 

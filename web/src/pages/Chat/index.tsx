@@ -1,11 +1,12 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { FC, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { Sider } from "../../components/Sider";
 import { useSecuricator } from "../../context/SecuricatorContext";
 import { db } from "../../database/db";
 import { Message } from "./Message";
 import { useWindowFocus } from "../../utils/useWindowFocus";
+import leftIcon from "../../assets/left.svg";
 
 interface Props {}
 
@@ -14,6 +15,7 @@ export const Chat: FC<Props> = () => {
   const { sendMessage, setShowMenu, contacts, setContactRead } =
     useSecuricator();
   const [message, setMessage] = useState<string>("");
+  const navigate = useNavigate();
 
   const publicKey = useMemo(() => {
     if (!rawPublicKey) return rawPublicKey;
@@ -50,10 +52,22 @@ export const Chat: FC<Props> = () => {
     }
   }, [contacts, publicKey, setContactRead, pageIsFocused]);
 
+  const contactName = useMemo(() => {
+    return contacts.find((c) => c.publicKey === publicKey)?.displayName;
+  }, [contacts, publicKey]);
+
   return (
     <>
-      <Sider />
       <main>
+        <div className="top-menu">
+          <button
+            className="btn btn-invisible"
+            onClick={() => navigate("/chats")}
+          >
+            <img src={leftIcon} alt="" />
+          </button>
+          <h2>{contactName}</h2>
+        </div>
         <div className="chat-box">
           <div className="messages-box">
             {contactMessages?.map((message) => (

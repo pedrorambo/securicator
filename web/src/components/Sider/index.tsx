@@ -20,20 +20,22 @@ export function Sider() {
 
   return (
     <>
-      <button
-        id="show-menu-button"
-        className="btn btn-text"
-        onClick={() => setShowMenu(true)}
-      >
-        <div className="conn-status" id="conn-status">
-          {connected ? (
-            <div className="connected"></div>
-          ) : (
-            <div className="disconnected"></div>
-          )}
-        </div>
-        Show menu
-      </button>
+      <div>
+        <button
+          id="show-menu-button"
+          className="btn btn-text"
+          onClick={() => setShowMenu(true)}
+        >
+          <div className="conn-status" id="conn-status">
+            {connected ? (
+              <div className="connected"></div>
+            ) : (
+              <div className="disconnected"></div>
+            )}
+          </div>
+          Show menu
+        </button>
+      </div>
 
       <aside className={showMenu ? "force-show-menu" : ""}>
         <div

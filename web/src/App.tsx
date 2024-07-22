@@ -6,6 +6,8 @@ import { AddContact } from "./pages/AddContact";
 import { Chat } from "./pages/Chat";
 import { ChangeName } from "./pages/ChangeName";
 import { useEffect } from "react";
+import { SelectInitialization } from "./pages/SelectInitialization";
+import { Chats } from "./pages/Chats";
 
 const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID?.trim();
 
@@ -41,8 +43,16 @@ function App() {
       element: <Home />,
     },
     {
+      path: "/select-initialization",
+      element: <SelectInitialization />,
+    },
+    {
       path: "/name",
       element: <ChangeName />,
+    },
+    {
+      path: "/chats",
+      element: <Chats />,
     },
     {
       path: "/contacts/new",
