@@ -662,7 +662,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       const contactEvents = await db.events
         .where("toPublicKey")
         .equals(publicKey)
-        .and((event) => event.acknowledged === false)
+        .and((event) => !event.acknowledged)
         .toArray();
       for (const event of contactEvents) {
         await sendToContact(publicKey, 1, `EVENT ${JSON.stringify(event)}`);
