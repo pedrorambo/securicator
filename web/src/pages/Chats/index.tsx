@@ -14,6 +14,16 @@ export const Chats: FC<Props> = () => {
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedSynchronization, setCopiedSynchronization] =
     useState<boolean>(false);
+  const [now, setNow] = useState<Date>(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     if (copied) {
@@ -49,7 +59,12 @@ export const Chats: FC<Props> = () => {
             >
               <Link to={`/contacts/${encodeURIComponent(c.publicKey)}`}>
                 <h3 className={c.unread ? "unread" : ""}>
-                  {/* <div className="connected"></div>{" "} */}
+                  {c.lastSeenAt &&
+                  now.getTime() - c.lastSeenAt.getTime() < 1000 * 5 ? (
+                    <div className="connected"></div>
+                  ) : (
+                    <div className="disconnected"></div>
+                  )}{" "}
                   {c.displayName || c.publicKey}
                 </h3>
                 <span>{c.biography}</span>
