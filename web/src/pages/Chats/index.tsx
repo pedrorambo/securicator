@@ -58,6 +58,10 @@ export const Chats: FC<Props> = () => {
           ))}
         </ul>
 
+        <hr />
+
+        <h3>Options</h3>
+
         <Link to="/contacts/new" className="btn btn-text">
           Add new contact
         </Link>
@@ -85,11 +89,9 @@ export const Chats: FC<Props> = () => {
           {copied ? "Copied" : "Copy public key"}
         </button>
 
-        <span className="text-muted version" title={COMPILED_COMMIT_ID}>
-          {COMPILED_COMMIT_ID.substring(0, 8)}
-        </span>
-
         <hr />
+
+        <h3>Sensitive actions</h3>
 
         <button
           className="btn btn-text btn-text-danger"
@@ -145,6 +147,25 @@ export const Chats: FC<Props> = () => {
         >
           Delete everything
         </button>
+
+        <hr />
+
+        <h3>Debug tools</h3>
+
+        <Link to="/envelopes" className="btn btn-text">
+          Envelopes
+        </Link>
+
+        <Link to="/events" className="btn btn-text">
+          Events
+        </Link>
+
+        <span className="text-muted version" title={COMPILED_COMMIT_ID}>
+          Version:{" "}
+          <pre style={{ display: "inline" }}>
+            {COMPILED_COMMIT_ID.substring(0, 8)}
+          </pre>
+        </span>
       </main>
     </>
   );

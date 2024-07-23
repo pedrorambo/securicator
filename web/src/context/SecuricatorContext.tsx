@@ -88,6 +88,7 @@ interface Props {
   initializeNewAccount: () => void;
   initializeExistingAccount: (synchronizationKey: string) => void;
   synchronizationKey?: string;
+  publicKeyToDisplayName: (publicKey: string) => string;
 }
 
 export interface Contact {
@@ -683,9 +684,20 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     }
   }, [connected, contacts, sendUnackedEvents, lastResendUnackedMessagesAt]);
 
+  const publicKeyToDisplayName = useCallback(
+    (pk: string) => {
+      if (pk === globalPublicKey) return name || pk;
+      const foundContact = contacts.find((c) => c.publicKey === pk);
+      if (foundContact) return foundContact.displayName || pk;
+      return pk;
+    },
+    [globalPublicKey, name, contacts]
+  );
+
   return (
     <SecuricatorContext.Provider
       value={{
+        publicKeyToDisplayName,
         globalPrivateKey,
         globalPublicKey,
         isInitialized: initialized,

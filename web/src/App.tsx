@@ -9,6 +9,8 @@ import { useEffect } from "react";
 import { SelectInitialization } from "./pages/SelectInitialization";
 import { Chats } from "./pages/Chats";
 import { AssignExistingAccountPage } from "./pages/AssignExistingAccountPage";
+import { Envelopes } from "./pages/Envelopes";
+import { Events } from "./pages/Events";
 
 const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID?.trim();
 
@@ -65,6 +67,14 @@ function App() {
     {
       path: "/contacts/:publicKey",
       element: <Chat />,
+    },
+    {
+      path: "/envelopes",
+      element: <Envelopes />,
+    },
+    {
+      path: "/events",
+      element: <Events />,
     },
   ]);
 
