@@ -229,7 +229,7 @@ aside h2 {
 .btn-invisible:hover,
 .btn-invisible:active,
 .btn-invisible:focus {
-  background: #ffffff;
+  background: var(--background);
 }
 
 .version {
@@ -322,9 +322,10 @@ hr {
   margin-right: -1rem;
 }
 
-.top-menu button img {
+.top-menu button svg {
   width: 1rem;
   height: 1rem;
+  color: var(--primary-color);
 }
 
 .messages-box {
