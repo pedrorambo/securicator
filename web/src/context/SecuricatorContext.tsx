@@ -215,8 +215,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       }
     }
 
-    console.log("Received event", event.type);
-
     switch (event.type) {
       case "envelope":
         const envelope = JSON.parse(event.payload);
@@ -363,8 +361,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     const content = await symmetricDecrypt(encrypted, symmetricKey, iv);
     const [verb, ...rest] = content.split(" ");
     const innerContent = rest.join(" ");
-
-    console.log("Received contact message: ", verb);
 
     switch (verb) {
       case "EVENT":
