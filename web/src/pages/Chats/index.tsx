@@ -50,8 +50,11 @@ export const Chats: FC<Props> = () => {
   return (
     <>
       <main>
-        <TopMenu hideBackButton title="Chats" />
+        <TopMenu hideBackButton title="Contacts" />
         <ul className="contacts" id="friends">
+          {!contacts?.length && (
+            <p className="text-muted">You have no contacts yet.</p>
+          )}
           {contacts.map((c) => (
             <li
               key={c.publicKey}
