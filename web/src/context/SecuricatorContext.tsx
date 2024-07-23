@@ -557,9 +557,11 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         publicKey
       );
       const encryptedContent = await symmetricEncrypt(content, symmetricKey);
-      websocket.current?.send(
-        `${globalPublicKey} ${publicKey} ${retentionLevel} CONTACT_MESSAGE ${encryptedSymmetricKey} ${encryptedContent.iv} ${encryptedContent.encrypted}`
-      );
+      if (websocket.current?.readyState === WebSocket.OPEN) {
+        websocket.current?.send(
+          `${globalPublicKey} ${publicKey} ${retentionLevel} CONTACT_MESSAGE ${encryptedSymmetricKey} ${encryptedContent.iv} ${encryptedContent.encrypted}`
+        );
+      }
     },
     [globalPublicKey]
   );
