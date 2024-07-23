@@ -393,7 +393,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   useEffect(() => {
     if (!globalPublicKey || !globalPrivateKey) return;
     websocket.current = new WebSocket(
-      "wss://securicator-relay-a.pedrorambo.com",
+      process.env.REACT_APP_WEBSOCKET_URL || "ws://localhost:9093",
       "protocolOne"
     );
     websocket.current.onmessage = async (event) => {
