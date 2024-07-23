@@ -97,6 +97,7 @@ export interface Contact {
   biography?: string;
   everBeenOnline: boolean;
   unread?: boolean;
+  lastSeenAt?: Date;
 }
 
 const SecuricatorContext = createContext<Props>({} as Props);
@@ -116,6 +117,11 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     useState<boolean>(false);
   const [lastResendUnackedMessagesAt, setLastResendUnackedMessagesAt] =
     useState<number>();
+  const contactsRef = useRef<Contact[]>([]);
+
+  useEffect(() => {
+    contactsRef.current = contacts;
+  }, [contacts]);
 
   const initializeNewAccount = useCallback(async () => {
     const { privateKey, publicKey } = await generateKeypair();
@@ -301,6 +307,27 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     }
   }
 
+  async function handleHeartbeatReceived(
+    publicKey: string,
+    innerContent: string
+  ) {
+    const time = new Date(innerContent);
+    setContacts((old) => {
+      const newValue = old.map((c) => {
+        if (c.publicKey !== publicKey) return c;
+        return {
+          ...c,
+          lastSeenAt: time,
+        };
+      });
+      window.localStorage.setItem(
+        "securicator-contacts",
+        JSON.stringify(newValue)
+      );
+      return newValue;
+    });
+  }
+
   function getSynchronizations() {
     const savedContent = window.localStorage.getItem(
       "securicator-synchronizations"
@@ -379,6 +406,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         handleContactInfoReceived(publicKey, innerContent);
         break;
       case "HEARTBEAT":
+        handleHeartbeatReceived(publicKey, innerContent);
         sendUnackedEvents(publicKey);
         break;
       case "SAME_CONTACT_SYNC":
@@ -457,6 +485,12 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     const contacts = window.localStorage.getItem("securicator-contacts");
     if (contacts) {
       let savedContacts = JSON.parse(contacts) || [];
+      savedContacts = savedContacts.map((contact: any) => ({
+        ...contact,
+        lastSeenAt: contact.lastSeenAt
+          ? new Date(contact.lastSeenAt)
+          : undefined,
+      }));
       // MIGRATION
       if (savedContacts.length) {
         savedContacts = savedContacts.map((contact: any) => {
@@ -632,8 +666,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   useEffect(() => {
     if (!connected) return;
     const interval = setInterval(() => {
-      // FIXME Will cause problems when updating the contacts (receiving updates)
-      for (const contact of contacts) {
+      if (!contactsRef.current) return;
+      for (const contact of contactsRef.current) {
         sendToContact(
           contact.publicKey,
           0,
@@ -652,7 +686,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     return () => {
       clearInterval(interval);
     };
-  }, [connected, contacts, sendToContact, biography, name]);
+  }, [connected, sendToContact, biography, name]);
 
   const synchronizationKey = useMemo(() => {
     if (!globalPrivateKey || !globalPublicKey) return undefined;

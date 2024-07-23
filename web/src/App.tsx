@@ -11,6 +11,7 @@ import { Chats } from "./pages/Chats";
 import { AssignExistingAccountPage } from "./pages/AssignExistingAccountPage";
 import { Envelopes } from "./pages/Envelopes";
 import { Events } from "./pages/Events";
+import { ContactsDebugPage } from "./pages/ContactsDebugPage";
 
 const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID?.trim();
 
@@ -59,6 +60,10 @@ function App() {
     {
       path: "/chats",
       element: <Chats />,
+    },
+    {
+      path: "/contacts",
+      element: <ContactsDebugPage />,
     },
     {
       path: "/contacts/new",

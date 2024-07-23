@@ -160,6 +160,10 @@ export const Chats: FC<Props> = () => {
           Events
         </Link>
 
+        <Link to="/contacts" className="btn btn-text">
+          Contacts
+        </Link>
+
         <span className="text-muted version" title={COMPILED_COMMIT_ID}>
           Version:{" "}
           <pre style={{ display: "inline" }}>

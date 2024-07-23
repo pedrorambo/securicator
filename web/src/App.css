@@ -293,8 +293,9 @@ hr {
   color: var(--text-muted);
 }
 
-.contact-status .online {
+.contact-status.online {
   color: var(--success);
+  font-weight: 500;
 }
 
 .top-menu .contact-name {
