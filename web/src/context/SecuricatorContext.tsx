@@ -166,8 +166,6 @@ interface Props {
   }) => any;
   connected: boolean;
   biography: string;
-  showMenu: boolean;
-  setShowMenu: (show: boolean) => void;
   setContactRead: (publicKey: string) => void;
   hasConfiguredAccount: boolean;
   initializeNewAccount: () => void;
@@ -204,7 +202,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   const [connected, setConnected] = useState<boolean>(false);
   const websocket = useRef<WebSocket | null>(null);
   const [websocketReloadCount, setWebsocketReloadCount] = useState<number>(1);
-  const [showMenu, setShowMenu] = useState<boolean>(false);
   const [initialized, setInitialized] = useState<boolean>(false);
   const [hasConfiguredAccount, setHasConfiguredAccount] =
     useState<boolean>(false);
@@ -836,8 +833,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         name,
         connected,
         biography,
-        showMenu,
-        setShowMenu,
         setContactRead,
         hasConfiguredAccount,
         initializeNewAccount,

@@ -611,10 +611,6 @@ aside h2 {
     display: none;
   }
 
-  aside.force-show-menu {
-    display: flex;
-  }
-
   /* aside {
     display: none;
   }

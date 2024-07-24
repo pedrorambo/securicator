@@ -1,5 +1,4 @@
 import { FC, useEffect, useState } from "react";
-import { Sider } from "../../components/Sider";
 import { useSecuricator } from "../../context/SecuricatorContext";
 import { TopMenu } from "../TopMenu";
 
