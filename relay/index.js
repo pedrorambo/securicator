@@ -30,6 +30,11 @@ wss.on("connection", function connection(ws) {
       return;
     }
 
+    if (textContent.startsWith("PING")) {
+      ws.send("PONG");
+      return;
+    }
+
     const destinationPublicKey = textContent.split(" ")[1];
     const retentionLevel = textContent.split(" ")[2];
 
