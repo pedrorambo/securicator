@@ -1,5 +1,6 @@
 :root {
   --primary-color: #007aff;
+  --primary-active-color: #00448c;
   --text-color: #0a0a0a;
   --background-accent: #ecf2f8;
   --background: #ffffff;
@@ -19,6 +20,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --primary-color: #1f5dfd;
+    --primary-active-color: #7da2ff;
     --input-background: #1e1c26;
     --text-color: #dee4ea;
     --text-muted: #6a6d88;
@@ -229,7 +231,8 @@ aside h2 {
 .btn-invisible:hover,
 .btn-invisible:active,
 .btn-invisible:focus {
-  background: var(--background);
+  background-color: transparent;
+  color: var(--primary-active-color);
 }
 
 .version {
