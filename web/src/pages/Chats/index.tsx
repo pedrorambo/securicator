@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { useSecuricator } from "../../context/SecuricatorContext";
 import { Link } from "react-router-dom";
 import { TopMenu } from "../TopMenu";
+import { truncateText } from "../../utils/truncateText";
 
 const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID || "dev";
 
@@ -68,9 +69,9 @@ export const Chats: FC<Props> = () => {
                   ) : (
                     <div className="disconnected"></div>
                   )}{" "}
-                  {c.displayName || c.publicKey}
+                  {truncateText(c.displayName || c.publicKey)}
                 </h3>
-                <span>{c.biography}</span>
+                <span>{truncateText(c.biography)}</span>
               </Link>
             </li>
           ))}
