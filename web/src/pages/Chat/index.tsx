@@ -6,6 +6,7 @@ import { db } from "../../database/db";
 import { Message } from "./Message";
 import { useWindowFocus } from "../../utils/useWindowFocus";
 import { TopMenu } from "../TopMenu";
+import { truncateText } from "../../utils/truncateText";
 
 interface Props {}
 
@@ -85,7 +86,7 @@ export const Chat: FC<Props> = () => {
     <>
       <main>
         <TopMenu
-          title={contactName}
+          title={truncateText(contactName || publicKey, 28)}
           subtitle={
             <>
               {contactStatus === "Online" ? (
