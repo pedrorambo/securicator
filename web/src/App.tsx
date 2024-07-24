@@ -21,19 +21,23 @@ function App() {
       const url = `${window.location.origin}/version.txt`;
       fetch(url, {
         cache: "no-cache",
-      }).then((response) => {
-        response.text().then((response) => {
-          const latestCommitId = response.trim();
-          if (
-            latestCommitId.length === 40 &&
-            COMPILED_COMMIT_ID?.length === 40
-          ) {
-            if (latestCommitId !== COMPILED_COMMIT_ID) {
-              window.location.reload();
+      })
+        .then((response) => {
+          response.text().then((response) => {
+            const latestCommitId = response.trim();
+            if (
+              latestCommitId.length === 40 &&
+              COMPILED_COMMIT_ID?.length === 40
+            ) {
+              if (latestCommitId !== COMPILED_COMMIT_ID) {
+                window.location.reload();
+              }
             }
-          }
+          });
+        })
+        .catch((error) => {
+          console.error(error);
         });
-      });
     }, 10000);
     return () => {
       clearInterval(interval);
