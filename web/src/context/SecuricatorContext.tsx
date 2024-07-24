@@ -174,6 +174,8 @@ interface Props {
   initializeExistingAccount: (synchronizationKey: string) => void;
   synchronizationKey?: string;
   publicKeyToDisplayName: (publicKey: string) => string;
+  receivedCount: number;
+  sentCount: number;
 }
 
 export interface Contact {
@@ -210,6 +212,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     useState<number>();
   const [lastReceivedPong, setLastReceivedPong] = useState<number>(0);
   const contactsRef = useRef<Contact[]>([]);
+  const [receivedCount, setReceivedCount] = useState<number>(0);
+  const [sentCount, setSentCount] = useState<number>(0);
 
   useEffect(() => {
     if (lastReceivedPong > 0) {
@@ -522,6 +526,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     let receiving = false;
 
     websocket.current.onmessage = async (event) => {
+      setReceivedCount((old) => old + 1);
       if (event.data === "PONG") {
         return setLastReceivedPong(new Date().getTime());
       }
@@ -549,8 +554,10 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     };
     websocket.current.onopen = () => {
       websocket.current?.send(`CONNECT ${globalPublicKey}`);
+      setSentCount((old) => old + 1);
       setInterval(() => {
         websocket.current?.send(`PING`);
+        setSentCount((old) => old + 1);
       }, 1000);
     };
     websocket.current.onerror = (e) => {
@@ -650,6 +657,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         websocket.current.send(
           `${globalPublicKey} ${publicKey} ${retentionLevel} CONTACT_MESSAGE ${encryptedSymmetricKey} ${encryptedContent.iv} ${encryptedContent.encrypted}`
         );
+        setSentCount((old) => old + 1);
       }
     },
     [globalPublicKey]
@@ -836,6 +844,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         initializeExistingAccount,
         synchronizationKey,
         changeContactInformation,
+        sentCount,
+        receivedCount,
       }}
     >
       {children}

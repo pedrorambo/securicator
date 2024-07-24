@@ -1,7 +1,6 @@
 import { FC, ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useSecuricator } from "../../context/SecuricatorContext";
-import leftIcon from "../../assets/left.svg";
 
 interface Props {
   title?: string;
@@ -10,7 +9,7 @@ interface Props {
 }
 
 export const TopMenu: FC<Props> = ({ hideBackButton, subtitle, title }) => {
-  const { connected } = useSecuricator();
+  const { connected, receivedCount, sentCount } = useSecuricator();
   const navigate = useNavigate();
 
   return (
@@ -44,6 +43,12 @@ export const TopMenu: FC<Props> = ({ hideBackButton, subtitle, title }) => {
           <div className="disconnected"></div>
         )}
       </div>
+      <small
+        style={{ position: "fixed", top: 10, right: 10 }}
+        className="text-muted"
+      >
+        {receivedCount} / {sentCount}
+      </small>
     </div>
   );
 };
