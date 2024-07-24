@@ -2,7 +2,7 @@ import WebSocket, { WebSocketServer } from "ws";
 
 let queue = [];
 
-const MAX_QUEUE_SIZE = 10000;
+const MAX_QUEUE_SIZE = 100000;
 
 const wss = new WebSocketServer({
   port: 9093,
