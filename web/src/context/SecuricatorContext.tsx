@@ -58,14 +58,6 @@ async function initializeAccount() {
   const existingAccount = window.localStorage.getItem("securicator-account");
   if (existingAccount) {
     return JSON.parse(existingAccount);
-  } else {
-    return null;
-    const { privateKey, publicKey } = await generateKeypair();
-    window.localStorage.setItem(
-      "securicator-account",
-      JSON.stringify({ privateKey, publicKey })
-    );
-    return { privateKey, publicKey, name: "", biography: "" };
   }
 }
 
@@ -117,7 +109,23 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     useState<boolean>(false);
   const [lastResendUnackedMessagesAt, setLastResendUnackedMessagesAt] =
     useState<number>();
+  const [lastReceivedPong, setLastReceivedPong] = useState<number>(0);
   const contactsRef = useRef<Contact[]>([]);
+
+  useEffect(() => {
+    if (lastReceivedPong > 0) {
+      setConnected(true);
+    }
+    const timeout = setTimeout(() => {
+      if (websocket.current && lastReceivedPong !== 0) {
+        setConnected(false);
+        websocket.current.close();
+      }
+    }, 2000);
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [lastReceivedPong]);
 
   useEffect(() => {
     contactsRef.current = contacts;
@@ -423,11 +431,18 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
 
   useEffect(() => {
     if (!globalPublicKey || !globalPrivateKey) return;
-    websocket.current = new WebSocket(
-      process.env.REACT_APP_WEBSOCKET_URL || "ws://localhost:9093",
-      "protocolOne"
-    );
+    if (!websocket.current || websocket.current.readyState !== WebSocket.OPEN) {
+      websocket.current = new WebSocket(
+        process.env.REACT_APP_WEBSOCKET_URL || "ws://localhost:9093",
+        "protocolOne"
+      );
+    }
+    if (!websocket.current) return;
     websocket.current.onmessage = async (event) => {
+      if (event.data === "PONG") {
+        return setLastReceivedPong(new Date().getTime());
+      }
+
       const parts = event.data
         .trim()
         .split(" ")
@@ -443,17 +458,14 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     };
     websocket.current.onopen = () => {
       websocket.current?.send(`CONNECT ${globalPublicKey}`);
-      setConnected(true);
+      setInterval(() => {
+        websocket.current?.send(`PING`);
+      }, 1000);
     };
     websocket.current.onerror = (e) => {
-      setConnected(false);
       console.error("Socket errored", e);
-      setTimeout(() => {
-        setWebsocketReloadCount((old) => old + 1);
-      }, Math.min(websocketReloadCount * 1000, 10000));
     };
     websocket.current.onclose = (e) => {
-      setConnected(false);
       console.log(
         "Socket is closed. Reconnect will be attempted in 1 second.",
         e.reason
@@ -461,12 +473,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       setTimeout(() => {
         setWebsocketReloadCount((old) => old + 1);
       }, Math.min(websocketReloadCount * 1000, 10000));
-    };
-
-    const wsCurrent = websocket.current;
-
-    return () => {
-      wsCurrent.close();
     };
   }, [globalPublicKey, globalPrivateKey, websocketReloadCount]);
 
