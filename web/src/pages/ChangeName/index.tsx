@@ -6,7 +6,7 @@ import { TopMenu } from "../TopMenu";
 interface Props {}
 
 export const ChangeName: FC<Props> = () => {
-  const { name, changeName, biography, changeBiography } = useSecuricator();
+  const { name, changeContactInformation, biography } = useSecuricator();
   const [value, setValue] = useState<string>("");
   const [bioValue, setBioValue] = useState<string>("");
 
@@ -29,12 +29,10 @@ export const ChangeName: FC<Props> = () => {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (value) {
-              changeName(value);
-            }
-            if (bioValue) {
-              changeBiography(bioValue);
-            }
+            changeContactInformation({
+              name: value,
+              biography: bioValue,
+            });
           }}
           className="generic-form"
         >

@@ -160,8 +160,10 @@ interface Props {
   contacts: Contact[];
   sendMessage: (publicKey: string, message: string) => any;
   name: string;
-  changeName: (name: string) => any;
-  changeBiography: (name: string) => any;
+  changeContactInformation: (data: {
+    name?: string;
+    biography?: string;
+  }) => any;
   connected: boolean;
   biography: string;
   showMenu: boolean;
@@ -388,26 +390,29 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
           event
         );
         break;
+      case "contact-info":
+        handleContactInfoReceived(
+          event.fromPublicKey,
+          JSON.parse(event.payload)
+        );
+        break;
     }
   }
 
-  function handleContactInfoReceived(publicKey: string, innerContent: string) {
-    const info = JSON.parse(innerContent);
+  function handleContactInfoReceived(
+    publicKey: string,
+    info: { name?: string; biography?: string }
+  ) {
     const contact = contacts.find((c) => c.publicKey === publicKey);
-    if (!contact) return;
-    if (
-      contact.displayName === info.name &&
-      contact.biography === info.biography
-    )
-      return;
-    if (info.name || info.biography) {
-      setContacts(
-        updateContactDetails(publicKey, {
-          name: info.name,
-          biography: info.biography,
-        })
-      );
+    if (!contact) {
+      setContacts(addContactToContacts(publicKey));
     }
+    setContacts(
+      updateContactDetails(publicKey, {
+        name: info.name,
+        biography: info.biography,
+      })
+    );
   }
 
   function handleHeartbeatReceived(publicKey: string, innerContent: string) {
@@ -494,9 +499,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
           acknowledged: true,
         });
         break;
-      case "CONTACT_INFO":
-        handleContactInfoReceived(publicKey, innerContent);
-        break;
       case "HEARTBEAT":
         handleHeartbeatReceived(publicKey, innerContent);
         sendUnackedEvents(publicKey);
@@ -580,11 +582,39 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     setInitialized(true);
   }, []);
 
+  const createContactInfoEvent = useCallback(
+    async (
+      publicKey: string,
+      {
+        name: newName,
+        biography: newBiography,
+      }: { name?: string; biography?: string }
+    ) => {
+      if (!globalPublicKey) return;
+      const event = {
+        id: uuid(),
+        type: "contact-info",
+        fromPublicKey: globalPublicKey,
+        toPublicKey: publicKey,
+        createdAt: new Date(),
+        payload: JSON.stringify({
+          name: newName || name,
+          biography: newBiography || biography,
+        }),
+        acknowledged: false,
+      };
+      await db.events.add(event);
+      return event;
+    },
+    [name, biography, globalPublicKey]
+  );
+
   const addContact = useCallback(
     (publicKey: string, dontCreateEvent?: boolean) => {
       if (!globalPublicKey) return;
       if (publicKey === globalPublicKey) return;
       setContacts(addContactToContacts(publicKey));
+      createContactInfoEvent(publicKey, {});
       if (!dontCreateEvent) {
         const event = {
           id: uuid(),
@@ -602,38 +632,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         db.events.add(event);
       }
     },
-    [globalPublicKey]
-  );
-
-  const changeName = useCallback(
-    (newName: string) => {
-      setName(newName);
-      window.localStorage.setItem(
-        "securicator-account",
-        JSON.stringify({
-          privateKey: globalPrivateKey,
-          publicKey: globalPublicKey,
-          name: newName,
-        })
-      );
-    },
-    [globalPrivateKey, globalPublicKey]
-  );
-
-  const changeBiography = useCallback(
-    (newValue: string) => {
-      setBiography(newValue);
-      window.localStorage.setItem(
-        "securicator-account",
-        JSON.stringify({
-          privateKey: globalPrivateKey,
-          publicKey: globalPublicKey,
-          name: name,
-          biography: newValue,
-        })
-      );
-    },
-    [globalPrivateKey, globalPublicKey, name]
+    [globalPublicKey, createContactInfoEvent]
   );
 
   const sendToContact = useCallback(
@@ -654,6 +653,40 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       }
     },
     [globalPublicKey]
+  );
+
+  const changeContactInformation = useCallback(
+    async ({ name, biography }: { name?: string; biography?: string }) => {
+      name = name || "";
+      biography = biography || "";
+
+      setName(name);
+      setBiography(biography);
+
+      window.localStorage.setItem(
+        "securicator-account",
+        JSON.stringify({
+          privateKey: globalPrivateKey,
+          publicKey: globalPublicKey,
+          name: name,
+          biography: biography,
+        })
+      );
+
+      const contacts = getSavedContacts();
+      for (const contact of contacts) {
+        const createdEvent = await createContactInfoEvent(contact.publicKey, {
+          name: name,
+          biography: biography,
+        });
+        sendToContact(
+          contact.publicKey,
+          1,
+          `EVENT ${JSON.stringify(createdEvent)}`
+        );
+      }
+    },
+    [globalPrivateKey, globalPublicKey, createContactInfoEvent, sendToContact]
   );
 
   const sendMessage = useCallback(
@@ -729,14 +762,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
           0,
           `HEARTBEAT ${new Date().toISOString()}`
         );
-        sendToContact(
-          contact.publicKey,
-          0,
-          `CONTACT_INFO ${JSON.stringify({
-            name,
-            biography,
-          })}`
-        );
       }
     }, 1000);
     return () => {
@@ -797,10 +822,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         contacts,
         sendMessage,
         name,
-        changeName,
         connected,
         biography,
-        changeBiography,
         showMenu,
         setShowMenu,
         setContactRead,
@@ -808,6 +831,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         initializeNewAccount,
         initializeExistingAccount,
         synchronizationKey,
+        changeContactInformation,
       }}
     >
       {children}
