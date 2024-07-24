@@ -17,7 +17,7 @@ import { generateSymmetricKey } from "../utils/generateSymmetricKey";
 import { symmetricDecrypt } from "../utils/symmetricDecrypt";
 import { symmetricEncrypt } from "../utils/symmetricEncrypt";
 
-function getSavedContacts() {
+function getSavedContacts(): Contact[] {
   const contacts = window.localStorage.getItem("securicator-contacts");
   if (!contacts) return [];
   let savedContacts = JSON.parse(contacts) || [];
@@ -25,6 +25,87 @@ function getSavedContacts() {
     ...contact,
     lastSeenAt: contact.lastSeenAt ? new Date(contact.lastSeenAt) : undefined,
   }));
+}
+
+function setContactMessagesAsRead(publicKey: string) {
+  const contacts = getSavedContacts();
+  const newContacts = contacts.map((contact) => {
+    if (contact.publicKey === publicKey) {
+      contact.unread = false;
+    }
+    return contact;
+  });
+  window.localStorage.setItem(
+    "securicator-contacts",
+    JSON.stringify(newContacts)
+  );
+  return getSavedContacts();
+}
+
+function setContactHasUnreadMessages(publicKey: string) {
+  const contacts = getSavedContacts();
+  const newContacts = contacts.map((contact) => {
+    if (contact.publicKey === publicKey) {
+      contact.unread = true;
+    }
+    return contact;
+  });
+  window.localStorage.setItem(
+    "securicator-contacts",
+    JSON.stringify(newContacts)
+  );
+  return getSavedContacts();
+}
+
+function updateContactLastSeen(publicKey: string, time: Date) {
+  const contacts = getSavedContacts();
+  const newContacts = contacts.map((contact) => {
+    if (contact.publicKey === publicKey) {
+      contact.lastSeenAt = time;
+    }
+    return contact;
+  });
+  window.localStorage.setItem(
+    "securicator-contacts",
+    JSON.stringify(newContacts)
+  );
+  return getSavedContacts();
+}
+
+function updateContactDetails(
+  publicKey: string,
+  { name, biography }: { name?: string; biography?: string }
+) {
+  const contacts = getSavedContacts();
+  const newContacts = contacts.map((contact) => {
+    if (contact.publicKey === publicKey) {
+      contact.displayName = name;
+      contact.biography = biography;
+    }
+    return contact;
+  });
+  window.localStorage.setItem(
+    "securicator-contacts",
+    JSON.stringify(newContacts)
+  );
+  return getSavedContacts();
+}
+
+function addContactToContacts(publicKey: string) {
+  const contacts = getSavedContacts();
+  const exists = contacts.some((c) => c.publicKey === publicKey);
+  if (exists) {
+    return contacts;
+  }
+  const newContacts = [
+    ...contacts,
+    { publicKey: publicKey, everBeenOnline: false, hasAddedEvent: true },
+  ];
+  window.localStorage.setItem(
+    "securicator-contacts",
+    JSON.stringify(newContacts)
+  );
+  return getSavedContacts();
 }
 
 function getSynchronizationId() {
@@ -197,12 +278,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   }
 
   const setContactRead = useCallback((publicKey: string) => {
-    setContacts((old) =>
-      old.map((contact) => ({
-        ...contact,
-        unread: contact.publicKey === publicKey ? false : contact.unread,
-      }))
-    );
+    setContacts(setContactMessagesAsRead(publicKey));
   }, []);
 
   async function sendEventsAfter(date: Date) {
@@ -270,16 +346,9 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
           if (!isSyncEvent) {
             envelope.deliveredAt = new Date();
           }
-          setContacts((old) =>
-            old.map((contact) => ({
-              ...contact,
-              unread:
-                contact.publicKey === envelope.senderPublicKey
-                  ? true
-                  : contact.unread || false,
-            }))
-          );
-          const contactExists = contacts.some(
+          setContacts(setContactHasUnreadMessages(envelope.senderPublicKey));
+          const savedContacts = getSavedContacts();
+          const contactExists = savedContacts.some(
             (c) => c.publicKey === envelope.senderPublicKey
           );
           if (!contactExists) {
@@ -332,40 +401,18 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     )
       return;
     if (info.name || info.biography) {
-      setContacts((old) => {
-        const newValue = old.map((c) => {
-          if (c.publicKey !== publicKey) return c;
-          return {
-            ...c,
-            displayName: info.name || "",
-            biography: info.biography || "",
-          };
-        });
-        window.localStorage.setItem(
-          "securicator-contacts",
-          JSON.stringify(newValue)
-        );
-        return newValue;
-      });
+      setContacts(
+        updateContactDetails(publicKey, {
+          name: info.name,
+          biography: info.biography,
+        })
+      );
     }
   }
 
   function handleHeartbeatReceived(publicKey: string, innerContent: string) {
     const time = new Date(innerContent);
-    setContacts((old) => {
-      const newValue = old.map((c) => {
-        if (c.publicKey !== publicKey) return c;
-        return {
-          ...c,
-          lastSeenAt: time,
-        };
-      });
-      window.localStorage.setItem(
-        "securicator-contacts",
-        JSON.stringify(newValue)
-      );
-      return newValue;
-    });
+    setContacts(updateContactLastSeen(publicKey, time));
   }
 
   function getSynchronizations() {
@@ -537,19 +584,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     (publicKey: string, dontCreateEvent?: boolean) => {
       if (!globalPublicKey) return;
       if (publicKey === globalPublicKey) return;
-      setContacts((old) => {
-        const includes = old.some((c) => c.publicKey === publicKey);
-        if (includes) return old;
-        const newContacts = [
-          ...old,
-          { publicKey: publicKey, everBeenOnline: false, hasAddedEvent: true },
-        ];
-        window.localStorage.setItem(
-          "securicator-contacts",
-          JSON.stringify(newContacts)
-        );
-        return newContacts;
-      });
+      setContacts(addContactToContacts(publicKey));
       if (!dontCreateEvent) {
         const event = {
           id: uuid(),
