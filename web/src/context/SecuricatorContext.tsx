@@ -17,6 +17,16 @@ import { generateSymmetricKey } from "../utils/generateSymmetricKey";
 import { symmetricDecrypt } from "../utils/symmetricDecrypt";
 import { symmetricEncrypt } from "../utils/symmetricEncrypt";
 
+function getSavedContacts() {
+  const contacts = window.localStorage.getItem("securicator-contacts");
+  if (!contacts) return [];
+  let savedContacts = JSON.parse(contacts) || [];
+  return savedContacts.map((contact: any) => ({
+    ...contact,
+    lastSeenAt: contact.lastSeenAt ? new Date(contact.lastSeenAt) : undefined,
+  }));
+}
+
 function getSynchronizationId() {
   const existing = window.localStorage.getItem(
     "securicator-synchronization-id"
@@ -103,7 +113,7 @@ const SecuricatorContext = createContext<Props>({} as Props);
 export const SecuricatorProvider: FC<any> = ({ children }) => {
   const [globalPrivateKey, setGlobalPrivateKey] = useState<string>();
   const [globalPublicKey, setGlobalPublicKey] = useState<string>();
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>(getSavedContacts());
   const [name, setName] = useState<string>("");
   const [biography, setBiography] = useState<string>("");
   const [connected, setConnected] = useState<boolean>(false);
@@ -315,8 +325,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   function handleContactInfoReceived(publicKey: string, innerContent: string) {
     const info = JSON.parse(innerContent);
     const contact = contacts.find((c) => c.publicKey === publicKey);
+    if (!contact) return;
     if (
-      contact &&
       contact.displayName === info.name &&
       contact.biography === info.biography
     )
@@ -523,55 +533,23 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     setInitialized(true);
   }, []);
 
-  useEffect(() => {
-    if (!globalPublicKey) return;
-    const contacts = window.localStorage.getItem("securicator-contacts");
-    if (contacts) {
-      let savedContacts = JSON.parse(contacts) || [];
-      savedContacts = savedContacts.map((contact: any) => ({
-        ...contact,
-        lastSeenAt: contact.lastSeenAt
-          ? new Date(contact.lastSeenAt)
-          : undefined,
-      }));
-      // MIGRATION
-      if (savedContacts.length) {
-        savedContacts = savedContacts.map((contact: any) => {
-          if (!contact.hasAddedEvent) {
-            contact.hasAddedEvent = true;
-            const event = {
-              id: uuid(),
-              type: "contact",
-              fromPublicKey: globalPublicKey,
-              toPublicKey: globalPublicKey,
-              createdAt: new Date(),
-              payload: JSON.stringify(contact),
-              acknowledged: true,
-            };
-            db.events.add(event);
-          }
-          return contact;
-        });
-        window.localStorage.setItem(
-          "securicator-contacts",
-          JSON.stringify(savedContacts)
-        );
-      }
-      // END MIGRATION
-      setContacts(savedContacts);
-    }
-  }, [globalPublicKey]);
-
   const addContact = useCallback(
     (publicKey: string, dontCreateEvent?: boolean) => {
       if (!globalPublicKey) return;
       if (publicKey === globalPublicKey) return;
-      if (contacts?.some((c) => c.publicKey === publicKey)) return;
-      const updatedContacts = [
-        ...(contacts || []),
-        { publicKey, everBeenOnline: false, hasAddedEvent: true },
-      ];
-      setContacts(updatedContacts);
+      setContacts((old) => {
+        const includes = old.some((c) => c.publicKey === publicKey);
+        if (includes) return old;
+        const newContacts = [
+          ...old,
+          { publicKey: publicKey, everBeenOnline: false, hasAddedEvent: true },
+        ];
+        window.localStorage.setItem(
+          "securicator-contacts",
+          JSON.stringify(newContacts)
+        );
+        return newContacts;
+      });
       if (!dontCreateEvent) {
         const event = {
           id: uuid(),
@@ -588,12 +566,8 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         };
         db.events.add(event);
       }
-      window.localStorage.setItem(
-        "securicator-contacts",
-        JSON.stringify(updatedContacts)
-      );
     },
-    [contacts, globalPublicKey]
+    [globalPublicKey]
   );
 
   const changeName = useCallback(
