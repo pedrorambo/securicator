@@ -528,6 +528,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   const addContact = useCallback(
     (publicKey: string, dontCreateEvent?: boolean) => {
       if (!globalPublicKey) return;
+      if (publicKey === globalPublicKey) return;
       if (contacts?.some((c) => c.publicKey === publicKey)) return;
       const updatedContacts = [
         ...(contacts || []),
