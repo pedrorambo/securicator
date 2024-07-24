@@ -504,7 +504,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         sendUnackedEvents(publicKey);
         break;
       case "SAME_CONTACT_SYNC":
-        handleSameContactSync(innerContent);
+        // handleSameContactSync(innerContent);
         break;
     }
   }
@@ -782,7 +782,11 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         .and((event) => !event.acknowledged)
         .toArray();
       for (const event of contactEvents) {
-        await sendToContact(publicKey, 1, `EVENT ${JSON.stringify(event)}`);
+        await sendToContact(
+          event.toPublicKey,
+          1,
+          `EVENT ${JSON.stringify(event)}`
+        );
       }
     },
     [sendToContact]
