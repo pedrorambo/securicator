@@ -54,7 +54,7 @@ function removeNotificationIcon() {
   link.href = "/favicon.ico";
 }
 
-async function initializeAccount() {
+function initializeAccount() {
   const existingAccount = window.localStorage.getItem("securicator-account");
   if (existingAccount) {
     return JSON.parse(existingAccount);
@@ -90,6 +90,12 @@ export interface Contact {
   everBeenOnline: boolean;
   unread?: boolean;
   lastSeenAt?: Date;
+}
+
+async function saveEvent(event: Event) {
+  const count = await db.events.where("id").equals(event.id).count();
+  if (count > 0) return;
+  await db.events.add(event);
 }
 
 const SecuricatorContext = createContext<Props>({} as Props);
@@ -141,7 +147,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   }, []);
 
   const initializeExistingAccount = useCallback(
-    async (synchronizationKey: string) => {
+    (synchronizationKey: string) => {
       const [privateKey, publicKey] = synchronizationKey.split(" ");
       window.localStorage.setItem(
         "securicator-account",
@@ -154,13 +160,22 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
 
   async function handleEnvelopeDelivered(
     publicKey: string,
-    content: { id: string; deliveredAt: string }
+    content: { id: string; deliveredAt: string },
+    event: Event
   ) {
     const envelope = await db.envelopes.get({
       id: content.id,
     });
-    if (!envelope) return;
-    if (envelope.deliveredAt) return;
+    if (!envelope) {
+      return console.log(`Envelope ${content.id} not found`);
+    }
+    if (envelope.deliveredAt) {
+      return console.log("Envelope already delivered");
+    }
+    await saveEvent({
+      ...event,
+      acknowledged: true,
+    });
     await db.envelopes.update(
       {
         id: content.id,
@@ -186,6 +201,10 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       .where("createdAt")
       .aboveOrEqual(date)
       .toArray();
+    events.sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
     console.log(events);
     for (const event of events) {
       console.log("SENDING EVENT ", event.type);
@@ -209,7 +228,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
 
     if (!isSyncEvent) {
       if (count > 0) {
-        await sendToContact(
+        return await sendToContact(
           event.fromPublicKey,
           1,
           `ACK_EVENT ${JSON.stringify({
@@ -217,7 +236,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
             acknowledged: true,
           })}`
         );
-        return;
       } else {
         await sendToContact(
           event.fromPublicKey,
@@ -257,7 +275,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
           if (!contactExists) {
             addContact(envelope.senderPublicKey);
           }
-          db.envelopes.add(envelope);
+          await db.envelopes.add(envelope);
         }
         if (!isSyncEvent) {
           const deliveredEvent: Event = {
@@ -272,7 +290,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
               deliveredAt: envelope.deliveredAt.toISOString(),
             }),
           };
-          db.events.add(deliveredEvent);
+          await saveEvent(deliveredEvent);
           await sendToContact(
             envelope.senderPublicKey,
             1,
@@ -285,15 +303,16 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         addContact(content.publicKey, true);
         break;
       case "envelope-delivered":
-        handleEnvelopeDelivered(event.fromPublicKey, JSON.parse(event.payload));
+        await handleEnvelopeDelivered(
+          event.fromPublicKey,
+          JSON.parse(event.payload),
+          event
+        );
         break;
     }
   }
 
-  async function handleContactInfoReceived(
-    publicKey: string,
-    innerContent: string
-  ) {
+  function handleContactInfoReceived(publicKey: string, innerContent: string) {
     const info = JSON.parse(innerContent);
     const contact = contacts.find((c) => c.publicKey === publicKey);
     if (
@@ -321,10 +340,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     }
   }
 
-  async function handleHeartbeatReceived(
-    publicKey: string,
-    innerContent: string
-  ) {
+  function handleHeartbeatReceived(publicKey: string, innerContent: string) {
     const time = new Date(innerContent);
     setContacts((old) => {
       const newValue = old.map((c) => {
@@ -382,7 +398,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     }
   }
 
-  async function handleSameContactSync(innerContent: string) {
+  function handleSameContactSync(innerContent: string) {
     const synchronizationTime = new Date();
     const { synchronizationId } = JSON.parse(innerContent);
     const lastSynchronization =
@@ -408,7 +424,12 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       case "EVENT":
         const event = JSON.parse(innerContent);
         event.createdAt = new Date(event.createdAt);
-        handleEventReceived(event);
+        try {
+          await handleEventReceived(event);
+        } catch (error: any) {
+          console.error(`Error processing received event: ${error.message}`);
+          console.error(error);
+        }
         break;
       case "ACK_EVENT":
         const content = JSON.parse(innerContent);
@@ -438,6 +459,9 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       );
     }
     if (!websocket.current) return;
+
+    let receiving = false;
+
     websocket.current.onmessage = async (event) => {
       if (event.data === "PONG") {
         return setLastReceivedPong(new Date().getTime());
@@ -453,7 +477,15 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       const content = parts.slice(4).join(" ");
 
       if (verb === "CONTACT_MESSAGE") {
-        handleInnerMessage(contactGlobalPublicKey, content);
+        while (receiving) {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+        try {
+          receiving = true;
+          await handleInnerMessage(contactGlobalPublicKey, content);
+        } finally {
+          receiving = false;
+        }
       }
     };
     websocket.current.onopen = () => {
@@ -477,19 +509,18 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   }, [globalPublicKey, globalPrivateKey, websocketReloadCount]);
 
   useEffect(() => {
-    initializeAccount().then((account) => {
-      if (!account) {
-        setHasConfiguredAccount(false);
-        setInitialized(true);
-        return;
-      }
-      setGlobalPrivateKey(account.privateKey);
-      setGlobalPublicKey(account.publicKey);
-      setName(account.name);
-      setBiography(account.biography);
-      setHasConfiguredAccount(true);
+    const account = initializeAccount();
+    if (!account) {
+      setHasConfiguredAccount(false);
       setInitialized(true);
-    });
+      return;
+    }
+    setGlobalPrivateKey(account.privateKey);
+    setGlobalPublicKey(account.publicKey);
+    setName(account.name);
+    setBiography(account.biography);
+    setHasConfiguredAccount(true);
+    setInitialized(true);
   }, []);
 
   useEffect(() => {
@@ -604,8 +635,11 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         publicKey
       );
       const encryptedContent = await symmetricEncrypt(content, symmetricKey);
-      if (websocket.current?.readyState === WebSocket.OPEN) {
-        websocket.current?.send(
+      if (
+        websocket.current &&
+        websocket.current?.readyState === WebSocket.OPEN
+      ) {
+        websocket.current.send(
           `${globalPublicKey} ${publicKey} ${retentionLevel} CONTACT_MESSAGE ${encryptedSymmetricKey} ${encryptedContent.iv} ${encryptedContent.encrypted}`
         );
       }
