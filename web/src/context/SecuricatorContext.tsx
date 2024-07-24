@@ -243,6 +243,12 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
                   : contact.unread || false,
             }))
           );
+          const contactExists = contacts.some(
+            (c) => c.publicKey === envelope.senderPublicKey
+          );
+          if (!contactExists) {
+            addContact(envelope.senderPublicKey);
+          }
           db.envelopes.add(envelope);
         }
         if (!isSyncEvent) {
