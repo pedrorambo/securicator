@@ -47,7 +47,9 @@ export const TopMenu: FC<Props> = ({ hideBackButton, subtitle, title }) => {
         style={{ position: "fixed", top: 10, right: 10 }}
         className="text-muted"
       >
-        {receivedCount} / {sentCount}
+        <code>
+          {receivedCount} / {sentCount}
+        </code>
       </small>
     </div>
   );
