@@ -586,6 +586,10 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         sendUnackedEvents(publicKey);
         break;
       case "SAME_CONTACT_SYNC":
+        if (publicKey !== globalPublicKey) {
+          console.log("Trying to sync information from another account");
+          return;
+        }
         handleSameContactSync(innerContent);
         break;
     }
