@@ -16,6 +16,29 @@ import { generateKeypair } from "../utils/generateKeypair";
 import { generateSymmetricKey } from "../utils/generateSymmetricKey";
 import { symmetricDecrypt } from "../utils/symmetricDecrypt";
 import { symmetricEncrypt } from "../utils/symmetricEncrypt";
+import { sign } from "../utils/sign";
+import { generateSignatureKeyPair } from "../utils/generateSignatureKeyPair";
+import { verify } from "../utils/verify";
+
+async function getSignatureKeyPair() {
+  const savedSignatureKeyPair = window.localStorage.getItem(
+    "securicator-signature-keypair"
+  );
+  if (savedSignatureKeyPair) {
+    const parts = savedSignatureKeyPair.split(" ");
+    return {
+      privateKey: parts[0],
+      publicKey: parts[1],
+    };
+  } else {
+    const created = await generateSignatureKeyPair();
+    window.localStorage.setItem(
+      "securicator-signature-keypair",
+      `${created.privateKey} ${created.publicKey}`
+    );
+    return created;
+  }
+}
 
 function getSavedContacts(): Contact[] {
   const contacts = window.localStorage.getItem("securicator-contacts");
@@ -474,13 +497,29 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
 
   async function handleInnerMessage(publicKey: string, rawContent: string) {
     if (!globalPrivateKey || !globalPublicKey) return;
-    const [encryptedSymmetricKey, iv, encrypted] = rawContent.split(" ");
+    const [signature, encryptedSymmetricKey, iv, encrypted] =
+      rawContent.split(" ");
     const symmetricKey = await asymmetricDecrypt(
       encryptedSymmetricKey,
       globalPrivateKey
     );
-    const content = await symmetricDecrypt(encrypted, symmetricKey, iv);
-    const [verb, ...rest] = content.split(" ");
+    const contentWithSignatureKey = await symmetricDecrypt(
+      encrypted,
+      symmetricKey,
+      iv
+    );
+    const signaturePublicKey = contentWithSignatureKey.split(" ")[0];
+    const signableContent = `${encryptedSymmetricKey} ${iv} ${encrypted}`;
+    const passedVerification = await verify(
+      signableContent,
+      signaturePublicKey,
+      signature
+    );
+    if (!passedVerification) {
+      console.log("Failed message signature validation");
+      return;
+    }
+    const [verb, ...rest] = contentWithSignatureKey.split(" ").slice(1);
     const innerContent = rest.join(" ");
 
     switch (verb) {
@@ -646,18 +685,26 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         symmetricKey,
         publicKey
       );
-      const encryptedContent = await symmetricEncrypt(content, symmetricKey);
+      const { privateKey: signaturePrivateKey, publicKey: signaturePublicKey } =
+        await getSignatureKeyPair();
+      const encryptedContent = await symmetricEncrypt(
+        `${signaturePublicKey} ${content}`,
+        symmetricKey
+      );
       if (
         websocket.current &&
         websocket.current?.readyState === WebSocket.OPEN
       ) {
+        if (!globalPrivateKey) return;
+        const signableContent = `${encryptedSymmetricKey} ${encryptedContent.iv} ${encryptedContent.encrypted}`;
+        const signature = await sign(signableContent, signaturePrivateKey);
         websocket.current.send(
-          `${globalPublicKey} ${publicKey} ${retentionLevel} CONTACT_MESSAGE ${encryptedSymmetricKey} ${encryptedContent.iv} ${encryptedContent.encrypted}`
+          `${globalPublicKey} ${publicKey} ${retentionLevel} CONTACT_MESSAGE ${signature} ${signableContent}`
         );
         setSentCount((old) => old + 1);
       }
     },
-    [globalPublicKey]
+    [globalPublicKey, globalPrivateKey]
   );
 
   const changeContactInformation = useCallback(
