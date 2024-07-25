@@ -22,31 +22,29 @@ wss.on("connection", function connection(ws) {
     }
     try {
       handlingMessage = true;
-      const textContent = data.toString();
-      if (textContent.startsWith("CONNECT ")) {
+
+      const pingStringPart = data.toString("utf-8", 0, 5);
+      if (pingStringPart === "PING") {
+        return ws.send("PONG");
+      }
+
+      const connectStringPart = data.toString("utf-8", 0, 8);
+      if (connectStringPart === "CONNECT ") {
+        const textContent = data.toString();
         const publicKey = textContent.split(" ")[1];
         ws.publicKey = publicKey;
-
         const queuedItems = queue.filter((item) => item.to === publicKey);
         queue = queuedItems.filter((item) => item.to !== publicKey);
         console.log("MEESSAGES REMOVED FROM QUEUE ", queue.length);
-
         for (const item of queuedItems) {
           ws.send(item.data, { binary: data.isBinary });
         }
-
         return;
       }
 
-      if (textContent.startsWith("PING")) {
-        ws.send("PONG");
-        return;
-      }
-
+      const textContent = data.toString();
       const destinationPublicKey = textContent.split(" ")[1];
       const retentionLevel = textContent.split(" ")[2];
-
-      // TODO: Mutex to ensure order or relayred messaged
 
       let destionationWasFound = false;
 
@@ -60,7 +58,7 @@ wss.on("connection", function connection(ws) {
       });
 
       if (!destionationWasFound && retentionLevel === "1") {
-        console.log("MEESSAGE PUSHED TO QUEUE ", queue.length);
+        console.log("MESSAGE PUSHED TO QUEUE ", queue.length);
         queue.push({
           from: ws.publicKey,
           to: destinationPublicKey,
