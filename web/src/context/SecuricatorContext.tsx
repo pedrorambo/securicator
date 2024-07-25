@@ -446,17 +446,21 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         );
         break;
       case "contact-info":
-        handleContactInfoReceived(
+        await handleContactInfoReceived(
           event.fromPublicKey,
-          JSON.parse(event.payload)
+          JSON.parse(event.payload),
+          event,
+          isSyncEvent
         );
         break;
     }
   }
 
-  function handleContactInfoReceived(
+  async function handleContactInfoReceived(
     publicKey: string,
-    info: { name?: string; biography?: string }
+    info: { name?: string; biography?: string },
+    event: Event,
+    isSyncEvent?: boolean
   ) {
     if (publicKey === globalPublicKey) {
       info.name = info.name || "";
@@ -486,6 +490,12 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         biography: info.biography,
       })
     );
+    if (!isSyncEvent) {
+      await saveEvent({
+        ...event,
+        acknowledged: true,
+      });
+    }
   }
 
   function handleHeartbeatReceived(publicKey: string, innerContent: string) {
@@ -628,6 +638,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         }
         handleUpdateLastSync(innerContent);
         break;
+      // TODO: Create a event OFFER_SAME_CONTACT_SYNC when the current contact becomes online
     }
   }
 
@@ -875,6 +886,13 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
 
   useEffect(() => {
     if (!connected || !globalPublicKey) return;
+    sendToContact(
+      globalPublicKey,
+      0,
+      `SAME_CONTACT_SYNC ${JSON.stringify({
+        synchronizationId: getSynchronizationId(),
+      })}`
+    );
     const interval = setInterval(() => {
       sendToContact(
         globalPublicKey,
