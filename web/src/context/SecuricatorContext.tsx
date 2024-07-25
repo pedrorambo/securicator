@@ -310,16 +310,17 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     setContacts(setContactMessagesAsRead(publicKey));
   }, []);
 
-  async function sendEventsAfter(date: Date) {
+  async function sendEventsAfter(
+    date: Date,
+    requesterSynchronizationId: string
+  ) {
     if (!globalPublicKey) return;
-    const events = await db.events
-      .where("createdAt")
-      .aboveOrEqual(date)
-      .toArray();
+    let events = await db.events.where("createdAt").above(date).toArray();
     events.sort(
       (a, b) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
+    events = events.slice(0, 100);
     console.log(events);
     for (const event of events) {
       await sendToContact(
@@ -329,19 +330,37 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
           ...event,
           isSyncEvent: true,
           syncFrom: getSynchronizationId(),
+          syncTo: requesterSynchronizationId,
         })}`
       );
     }
   }
 
   async function handleEventReceived(
-    event: Event & { isSyncEvent?: boolean; syncFrom?: string }
+    event: Event & { isSyncEvent?: boolean; syncFrom?: string; syncTo?: string }
   ) {
     if (!globalPublicKey) return;
     const count = await db.events.where("id").equals(event.id).count();
     const isSyncEvent = !!event.isSyncEvent;
-    if (event.syncFrom === getSynchronizationId()) {
-      return;
+    if (isSyncEvent) {
+      if (event.syncFrom === getSynchronizationId()) {
+        return;
+      }
+      if (event.syncTo !== getSynchronizationId()) {
+        return;
+      }
+    }
+
+    if (isSyncEvent) {
+      await sendToContact(
+        globalPublicKey,
+        0,
+        `UPDATE_LAST_CONTACT_SYNC ${JSON.stringify({
+          requesterId: getSynchronizationId(),
+          recipientId: event.syncFrom,
+          time: new Date(event.createdAt).toISOString(),
+        })}`
+      );
     }
 
     console.log(event.type);
@@ -500,11 +519,15 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     const current = getSynchronizations();
     const existing = current.find((s: any) => s.id === id);
     if (existing) {
-      existing.time = time.toISOString();
-      window.localStorage.setItem(
-        "securicator-synchronizations",
-        JSON.stringify(current)
-      );
+      const existingTime = new Date(existing.time).getTime();
+      const timeToUpdate = time.getTime();
+      if (timeToUpdate > existingTime) {
+        existing.time = time.toISOString();
+        window.localStorage.setItem(
+          "securicator-synchronizations",
+          JSON.stringify(current)
+        );
+      }
     } else {
       current.push({ id, time });
       window.localStorage.setItem(
@@ -525,15 +548,21 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   }
 
   async function handleSameContactSync(innerContent: string) {
-    const synchronizationTime = new Date();
     const { synchronizationId } = JSON.parse(innerContent);
     if (synchronizationId === getSynchronizationId()) return;
     const lastSynchronization =
       getLastSentSynchronizationTime(synchronizationId);
     if (new Date().getTime() - lastSynchronization.getTime() > 1000 * 5) {
-      await sendEventsAfter(lastSynchronization);
-      updateSynchronization(synchronizationId, synchronizationTime);
+      await sendEventsAfter(lastSynchronization, synchronizationId);
     }
+  }
+
+  async function handleUpdateLastSync(innerContent: string) {
+    const content = JSON.parse(innerContent);
+    if (content.requesterId === getSynchronizationId()) return;
+    if (content.recipientId !== getSynchronizationId()) return;
+    updateSynchronization(content.requesterId, new Date(content.time));
+    console.log("UPDATED SYNC");
   }
 
   async function handleInnerMessage(publicKey: string, rawContent: string) {
@@ -591,6 +620,13 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
           return;
         }
         handleSameContactSync(innerContent);
+        break;
+      case "UPDATE_LAST_CONTACT_SYNC":
+        if (publicKey !== globalPublicKey) {
+          console.log("Trying to sync information from another account");
+          return;
+        }
+        handleUpdateLastSync(innerContent);
         break;
     }
   }
