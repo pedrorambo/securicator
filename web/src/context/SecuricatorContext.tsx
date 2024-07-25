@@ -322,24 +322,29 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     );
     console.log(events);
     for (const event of events) {
-      console.log("SENDING EVENT ", event.type);
       await sendToContact(
         globalPublicKey,
         0,
         `EVENT ${JSON.stringify({
           ...event,
           isSyncEvent: true,
+          syncFrom: getSynchronizationId(),
         })}`
       );
     }
   }
 
-  async function handleEventReceived(event: Event & { isSyncEvent?: boolean }) {
+  async function handleEventReceived(
+    event: Event & { isSyncEvent?: boolean; syncFrom?: string }
+  ) {
     if (!globalPublicKey) return;
     const count = await db.events.where("id").equals(event.id).count();
-    const now = new Date();
-
     const isSyncEvent = !!event.isSyncEvent;
+    if (event.syncFrom === getSynchronizationId()) {
+      return;
+    }
+
+    console.log(event.type);
 
     if (!isSyncEvent) {
       if (count > 0) {
@@ -386,6 +391,10 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
           await db.envelopes.add(envelope);
         }
         if (!isSyncEvent) {
+          saveEvent({
+            ...event,
+            acknowledged: true,
+          });
           const deliveredEvent: Event = {
             id: uuid(),
             createdAt: new Date(),
@@ -430,6 +439,24 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     publicKey: string,
     info: { name?: string; biography?: string }
   ) {
+    if (publicKey === globalPublicKey) {
+      info.name = info.name || "";
+      info.biography = info.biography || "";
+
+      setName(info.name);
+      setBiography(info.biography);
+
+      window.localStorage.setItem(
+        "securicator-account",
+        JSON.stringify({
+          privateKey: globalPrivateKey,
+          publicKey: globalPublicKey,
+          name: info.name,
+          biography: info.biography,
+        })
+      );
+      return;
+    }
     const contact = contacts.find((c) => c.publicKey === publicKey);
     if (!contact) {
       setContacts(addContactToContacts(publicKey));
@@ -497,13 +524,14 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     }
   }
 
-  function handleSameContactSync(innerContent: string) {
+  async function handleSameContactSync(innerContent: string) {
     const synchronizationTime = new Date();
     const { synchronizationId } = JSON.parse(innerContent);
+    if (synchronizationId === getSynchronizationId()) return;
     const lastSynchronization =
       getLastSentSynchronizationTime(synchronizationId);
     if (new Date().getTime() - lastSynchronization.getTime() > 1000 * 5) {
-      sendEventsAfter(lastSynchronization);
+      await sendEventsAfter(lastSynchronization);
       updateSynchronization(synchronizationId, synchronizationTime);
     }
   }
@@ -553,11 +581,12 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         });
         break;
       case "HEARTBEAT":
+        if (publicKey === globalPublicKey) return;
         handleHeartbeatReceived(publicKey, innerContent);
         sendUnackedEvents(publicKey);
         break;
       case "SAME_CONTACT_SYNC":
-        // handleSameContactSync(innerContent);
+        handleSameContactSync(innerContent);
         break;
     }
   }
@@ -585,7 +614,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         .split(" ")
         .map((part: string) => part.trim());
       const contactGlobalPublicKey = parts[0];
-      const myGlobalPublicKey = parts[1];
       const verb = parts[3].replace(/gpk_/, "");
       const content = parts.slice(4).join(" ");
 
