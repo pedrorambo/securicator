@@ -20,6 +20,9 @@ import { sign } from "../utils/sign";
 import { generateSignatureKeyPair } from "../utils/generateSignatureKeyPair";
 import { verify } from "../utils/verify";
 
+export const INTERVAL_TO_SEND_PING_IN_MILLISECONDS = 3000;
+export const INTERVAL_TO_SEND_HEARTBEATS_IN_MILLISECONDS = 10000;
+
 async function getSignatureKeyPair() {
   const savedSignatureKeyPair = window.localStorage.getItem(
     "securicator-signature-keypair"
@@ -244,7 +247,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         setConnected(false);
         websocket.current.close();
       }
-    }, 2000);
+    }, INTERVAL_TO_SEND_PING_IN_MILLISECONDS + 1000);
     return () => {
       clearTimeout(timeout);
     };
@@ -441,6 +444,16 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
 
   function handleHeartbeatReceived(publicKey: string, innerContent: string) {
     const time = new Date(innerContent);
+    const contactLastHeartbeat = getSavedContacts().find(
+      (c) => c.publicKey === publicKey
+    )?.lastSeenAt;
+    if (
+      !contactLastHeartbeat ||
+      new Date().getTime() - contactLastHeartbeat.getTime() >
+        INTERVAL_TO_SEND_HEARTBEATS_IN_MILLISECONDS + 1000
+    ) {
+      sendToContact(publicKey, 0, `HEARTBEAT ${new Date().toISOString()}`);
+    }
     setContacts(updateContactLastSeen(publicKey, time));
   }
 
@@ -591,10 +604,12 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     websocket.current.onopen = () => {
       websocket.current?.send(`CONNECT ${globalPublicKey}`);
       setSentCount((old) => old + 1);
+      websocket.current?.send(`PING`);
+      setSentCount((old) => old + 1);
       setInterval(() => {
         websocket.current?.send(`PING`);
         setSentCount((old) => old + 1);
-      }, 1000);
+      }, INTERVAL_TO_SEND_PING_IN_MILLISECONDS);
     };
     websocket.current.onerror = (e) => {
       console.error("Socket errored", e);
@@ -806,7 +821,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
 
   useEffect(() => {
     if (!connected) return;
-    const interval = setInterval(() => {
+    async function sendHeartbeats() {
       if (!contactsRef.current) return;
       for (const contact of contactsRef.current) {
         sendToContact(
@@ -815,11 +830,15 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
           `HEARTBEAT ${new Date().toISOString()}`
         );
       }
-    }, 1000);
+    }
+    sendHeartbeats();
+    const interval = setInterval(() => {
+      sendHeartbeats();
+    }, INTERVAL_TO_SEND_HEARTBEATS_IN_MILLISECONDS);
     return () => {
       clearInterval(interval);
     };
-  }, [connected, sendToContact, biography, name]);
+  }, [connected, sendToContact]);
 
   const synchronizationKey = useMemo(() => {
     if (!globalPrivateKey || !globalPublicKey) return undefined;

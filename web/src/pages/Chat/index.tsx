@@ -1,7 +1,10 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { FC, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
-import { useSecuricator } from "../../context/SecuricatorContext";
+import {
+  INTERVAL_TO_SEND_HEARTBEATS_IN_MILLISECONDS,
+  useSecuricator,
+} from "../../context/SecuricatorContext";
 import { db } from "../../database/db";
 import { Message } from "./Message";
 import { useWindowFocus } from "../../utils/useWindowFocus";
@@ -71,7 +74,9 @@ export const Chat: FC<Props> = () => {
       (c) => c.publicKey === publicKey
     )?.lastSeenAt;
     if (!lastSeen) return "Unknown";
-    const isOnline = new Date().getTime() - lastSeen.getTime() < 5000;
+    const isOnline =
+      new Date().getTime() - lastSeen.getTime() <
+      INTERVAL_TO_SEND_HEARTBEATS_IN_MILLISECONDS + 1000;
     if (isOnline) return "Online";
     const lastSeenDate = lastSeen.toLocaleString("en-US", {
       day: "numeric",

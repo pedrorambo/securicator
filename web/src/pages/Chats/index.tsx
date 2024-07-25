@@ -1,6 +1,9 @@
 import { FC, useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { useSecuricator } from "../../context/SecuricatorContext";
+import {
+  INTERVAL_TO_SEND_HEARTBEATS_IN_MILLISECONDS,
+  useSecuricator,
+} from "../../context/SecuricatorContext";
 import { Link } from "react-router-dom";
 import { TopMenu } from "../TopMenu";
 import { truncateText } from "../../utils/truncateText";
@@ -73,7 +76,8 @@ export const Chats: FC<Props> = () => {
                 <Link to={`/contacts/${encodeURIComponent(c.publicKey)}`}>
                   <h3 className={c.unread ? "unread" : ""}>
                     {c.lastSeenAt &&
-                    now.getTime() - c.lastSeenAt.getTime() < 1000 * 5 ? (
+                    now.getTime() - c.lastSeenAt.getTime() <
+                      INTERVAL_TO_SEND_HEARTBEATS_IN_MILLISECONDS + 1000 ? (
                       <div className="connected"></div>
                     ) : (
                       <div className="disconnected"></div>
