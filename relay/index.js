@@ -3,6 +3,7 @@ import WebSocket, { WebSocketServer } from "ws";
 let queue = [];
 
 const MAX_QUEUE_SIZE = 100000;
+const ENABLE_QUEUE = true;
 
 const wss = new WebSocketServer({
   port: 9093,
@@ -43,6 +44,7 @@ wss.on("connection", function connection(ws) {
       }
 
       const textContent = data.toString();
+
       const destinationPublicKey = textContent.split(" ")[1];
       const retentionLevel = textContent.split(" ")[2];
 
@@ -57,7 +59,7 @@ wss.on("connection", function connection(ws) {
         }
       });
 
-      if (!destionationWasFound && retentionLevel === "1") {
+      if (!destionationWasFound && retentionLevel === "1" && ENABLE_QUEUE) {
         console.log("MESSAGE PUSHED TO QUEUE ", queue.length);
         queue.push({
           from: ws.publicKey,
