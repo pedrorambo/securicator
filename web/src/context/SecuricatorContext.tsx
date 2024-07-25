@@ -575,6 +575,20 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     console.log("UPDATED SYNC");
   }
 
+  async function handleSameContactSyncOffer(innerContent: string) {
+    if (!globalPublicKey) return;
+    const content = JSON.parse(innerContent);
+    if (content.synchronizationId !== getSynchronizationId()) {
+      await sendToContact(
+        globalPublicKey,
+        0,
+        `SAME_CONTACT_SYNC ${JSON.stringify({
+          synchronizationId: getSynchronizationId(),
+        })}`
+      );
+    }
+  }
+
   async function handleInnerMessage(publicKey: string, rawContent: string) {
     if (!globalPrivateKey || !globalPublicKey) return;
     const [signature, encryptedSymmetricKey, iv, encrypted] =
@@ -622,7 +636,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       case "HEARTBEAT":
         if (publicKey === globalPublicKey) return;
         handleHeartbeatReceived(publicKey, innerContent);
-        sendUnackedEvents(publicKey);
+        sendUnackedEvents(publicKey, true);
         break;
       case "SAME_CONTACT_SYNC":
         if (publicKey !== globalPublicKey) {
@@ -638,7 +652,13 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         }
         handleUpdateLastSync(innerContent);
         break;
-      // TODO: Create a event OFFER_SAME_CONTACT_SYNC when the current contact becomes online
+      case "OFFER_SAME_CONTACT_SYNC":
+        if (publicKey !== globalPublicKey) {
+          console.log("Trying to sync information from another account");
+          return;
+        }
+        handleSameContactSyncOffer(innerContent);
+        break;
     }
   }
 
@@ -893,6 +913,13 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         synchronizationId: getSynchronizationId(),
       })}`
     );
+    sendToContact(
+      globalPublicKey,
+      0,
+      `OFFER_SAME_CONTACT_SYNC ${JSON.stringify({
+        synchronizationId: getSynchronizationId(),
+      })}`
+    );
     const interval = setInterval(() => {
       sendToContact(
         globalPublicKey,
@@ -932,7 +959,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   }, [globalPrivateKey, globalPublicKey]);
 
   const sendUnackedEvents = useCallback(
-    async (publicKey: string) => {
+    async (publicKey: string, noRetention?: boolean) => {
       const contactEvents = await db.events
         .where("toPublicKey")
         .equals(publicKey)
@@ -941,7 +968,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       for (const event of contactEvents) {
         await sendToContact(
           event.toPublicKey,
-          1,
+          noRetention ? 0 : 1,
           `EVENT ${JSON.stringify(event)}`
         );
       }
@@ -950,17 +977,18 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   );
 
   useEffect(() => {
-    if (!connected || !contacts.length) return;
+    const conts = getSavedContacts();
+    if (!connected || !conts.length) return;
     const now = Date.now();
     if (
       !lastResendUnackedMessagesAt ||
       Math.abs(now - lastResendUnackedMessagesAt) > 1000 * 60
     ) {
-      contacts.forEach((contact) => {
+      conts.forEach((contact) => {
         sendUnackedEvents(contact.publicKey);
       });
     }
-  }, [connected, contacts, sendUnackedEvents, lastResendUnackedMessagesAt]);
+  }, [connected, sendUnackedEvents, lastResendUnackedMessagesAt]);
 
   const publicKeyToDisplayName = useCallback(
     (pk: string) => {
