@@ -936,16 +936,6 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         synchronizationId: getSynchronizationId(),
       })}`
     );
-    const interval = setInterval(() => {
-      sendToContact(
-        globalPublicKey,
-        0,
-        `SAME_CONTACT_SYNC ${JSON.stringify({
-          synchronizationId: getSynchronizationId(),
-        })}`
-      );
-    }, 5000);
-    return () => clearInterval(interval);
   }, [connected, globalPublicKey, sendToContact]);
 
   useEffect(() => {
