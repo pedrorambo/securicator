@@ -310,7 +310,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     setContacts(setContactMessagesAsRead(publicKey));
   }, []);
 
-  async function sendEventsAfter(
+  async function sendNextEventAfter(
     date: Date,
     requesterSynchronizationId: string
   ) {
@@ -320,20 +320,26 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
       (a, b) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
-    events = events.slice(0, 100);
-    console.log(events);
-    for (const event of events) {
-      await sendToContact(
-        globalPublicKey,
-        0,
-        `EVENT ${JSON.stringify({
-          ...event,
-          isSyncEvent: true,
-          syncFrom: getSynchronizationId(),
-          syncTo: requesterSynchronizationId,
-        })}`
+    if (events.length) {
+      const firstEvent = events[0];
+      const firstEventCreatedAt = firstEvent.createdAt;
+      const eventsWithFirstEventTime = events.filter(
+        (event) => event.createdAt.getTime() === firstEventCreatedAt.getTime()
       );
+      for (const event of eventsWithFirstEventTime) {
+        await sendToContact(
+          globalPublicKey,
+          0,
+          `EVENT ${JSON.stringify({
+            ...event,
+            isSyncEvent: true,
+            syncFrom: getSynchronizationId(),
+            syncTo: requesterSynchronizationId,
+          })}`
+        );
+      }
     }
+    console.log(events);
   }
 
   async function handleEventReceived(
@@ -562,16 +568,19 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
     if (synchronizationId === getSynchronizationId()) return;
     const lastSynchronization =
       getLastSentSynchronizationTime(synchronizationId);
-    if (new Date().getTime() - lastSynchronization.getTime() > 1000 * 5) {
-      await sendEventsAfter(lastSynchronization, synchronizationId);
-    }
+    await sendNextEventAfter(lastSynchronization, synchronizationId);
   }
 
   async function handleUpdateLastSync(innerContent: string) {
     const content = JSON.parse(innerContent);
     if (content.requesterId === getSynchronizationId()) return;
     if (content.recipientId !== getSynchronizationId()) return;
-    updateSynchronization(content.requesterId, new Date(content.time));
+    const newSyncTime = new Date(content.time);
+    updateSynchronization(content.requesterId, newSyncTime);
+    const lastSynchronization = getLastSentSynchronizationTime(
+      content.requesterId
+    );
+    await sendNextEventAfter(lastSynchronization, content.requesterId);
     console.log("UPDATED SYNC");
   }
 
@@ -856,7 +865,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
   );
 
   const sendMessage = useCallback(
-    (publicKey: string, message: string) => {
+    async (publicKey: string, message: string) => {
       if (!contacts?.some((c) => c.publicKey === publicKey)) return;
       if (!globalPublicKey) return;
       const envelope = {
@@ -866,7 +875,7 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         receiverPublicKey: publicKey,
         createdAt: new Date(),
       };
-      db.envelopes.add(envelope);
+      await db.envelopes.add(envelope);
       const event = {
         id: uuid(),
         type: "envelope",
@@ -876,8 +885,15 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
         payload: JSON.stringify(envelope),
         acknowledged: false,
       };
-      db.events.add(event);
-      sendToContact(publicKey, 1, `EVENT ${JSON.stringify(event)}`);
+      await db.events.add(event);
+      await sendToContact(publicKey, 1, `EVENT ${JSON.stringify(event)}`);
+      await sendToContact(
+        globalPublicKey,
+        0,
+        `OFFER_SAME_CONTACT_SYNC ${JSON.stringify({
+          synchronizationId: getSynchronizationId(),
+        })}`
+      );
     },
     [contacts, globalPublicKey, sendToContact]
   );
