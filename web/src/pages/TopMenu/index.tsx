@@ -38,9 +38,9 @@ export const TopMenu: FC<Props> = ({ hideBackButton, subtitle, title }) => {
       </div>
       <div className="conn-status" id="conn-status">
         {connected ? (
-          <div className="connected"></div>
+          <div className="connected" title="Connected"></div>
         ) : (
-          <div className="disconnected"></div>
+          <div className="disconnected" title="Not connected"></div>
         )}
       </div>
     </div>
