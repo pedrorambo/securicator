@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const TopMenu: FC<Props> = ({ hideBackButton, subtitle, title }) => {
-  const { connected, receivedCount, sentCount } = useSecuricator();
+  const { connected } = useSecuricator();
   const navigate = useNavigate();
 
   return (
@@ -43,14 +43,6 @@ export const TopMenu: FC<Props> = ({ hideBackButton, subtitle, title }) => {
           <div className="disconnected"></div>
         )}
       </div>
-      <small
-        style={{ position: "fixed", top: 10, right: 10 }}
-        className="text-muted"
-      >
-        <code>
-          {receivedCount} / {sentCount}
-        </code>
-      </small>
     </div>
   );
 };

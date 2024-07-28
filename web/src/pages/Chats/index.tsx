@@ -13,7 +13,13 @@ const COMPILED_COMMIT_ID = process.env.REACT_APP_COMMIT_ID || "dev";
 interface Props {}
 
 export const Chats: FC<Props> = () => {
-  const { globalPublicKey, contacts, synchronizationKey } = useSecuricator();
+  const {
+    globalPublicKey,
+    contacts,
+    synchronizationKey,
+    receivedCount,
+    sentCount,
+  } = useSecuricator();
   const { publicKey } = useParams<any>();
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedSynchronization, setCopiedSynchronization] =
@@ -197,10 +203,13 @@ export const Chats: FC<Props> = () => {
           </Link>
 
           <span className="text-muted version" title={COMPILED_COMMIT_ID}>
-            Version:{" "}
-            <pre style={{ display: "inline" }}>
-              {COMPILED_COMMIT_ID.substring(0, 8)}
-            </pre>
+            <code>Version: {COMPILED_COMMIT_ID.substring(0, 8)}</code>
+          </span>
+
+          <span className="text-muted" title={COMPILED_COMMIT_ID}>
+            <code>
+              I/O: {receivedCount} / {sentCount}
+            </code>
           </span>
         </div>
       </main>
