@@ -414,6 +414,85 @@ export const SecuricatorProvider: FC<any> = ({ children }) => {
             addContact(envelope.senderPublicKey);
           }
           await db.envelopes.add(envelope);
+
+          if (name?.includes("(BOT)")) {
+            console.log("SHOUlD SEND");
+            const message = envelope.content;
+            const promise = new Promise((resolve) => setTimeout(resolve, 1000));
+            promise.then(async () => {
+              switch (message) {
+                case "Hello":
+                  sendMessage(envelope.senderPublicKey, "Hi!");
+                  break;
+                case "Who are you?":
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "I'm a bot created for demonstration purposes. My mission is to answer your questions."
+                  );
+                  break;
+                case "What is this?":
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "This is a distributed chat application with end-to-end encryption called Securicator"
+                  );
+                  break;
+                case "Thank you!":
+                  sendMessage(envelope.senderPublicKey, "Your welcome!");
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  sendMessage(envelope.senderPublicKey, "Goodbye.");
+                  break;
+                case "Can you give me an overview of the architecture?":
+                  sendMessage(envelope.senderPublicKey, "Sure!");
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "Securicator uses a combination of signature, asymmetric, and symmetric encryption to keep your messages private."
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, 5000));
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "The communication is decentralized, meaning that all exchanged information and everything necessary for authentication and communication are present only on your device and your contacts' devices."
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, 8000));
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "A stateless relay server is used to create a secure channel between you and your contacts. However, that server can be replaced by any other server that implements the same protocol."
+                  );
+                  break;
+                case "What features does this app offer?":
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "That's a good question!"
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "Let me list some of the features:"
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "- Ability to exchange secure end-to-end encrypted messages to your contacts"
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, 2000));
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "- Support for multiple devices using the same account"
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, 2000));
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "- Connection, delivery and synchronization resiliency"
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, 3000));
+                  sendMessage(
+                    envelope.senderPublicKey,
+                    "May I assist you with anything furter?"
+                  );
+                  break;
+              }
+            });
+          }
         }
         if (!isSyncEvent) {
           saveEvent({
