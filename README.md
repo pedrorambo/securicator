@@ -1,5 +1,7 @@
 Securicator is a **decentralized and distributed end-to-end encrypted messaging app**. The features includes delivery and read confirmation, persistence, mulit-device support and the secure chat with the contacts.
 
+https://github.com/user-attachments/assets/65ea1bc6-e174-42fb-bb07-f21bd7a8b92c
+
 This is an experimental project, developed for learning about networking and encryption. If you're considering using this in a production environment (e.g., for sending confidential messages), remember that a thorough security analysis is necessary. To assist you, there's a "Security Checklist" section available in this document.
 
 ---
